@@ -5,4 +5,4 @@ kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadur
 
 
 1. bandpass filter
-2. Video bis 1:41 geschaut
+2. Video bis 2:00:37 geschaut
