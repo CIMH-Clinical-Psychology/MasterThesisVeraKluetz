@@ -5,4 +5,10 @@ kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadur
 
 
 1. bandpass filter
-2. Video bis 2:00:37 geschaut
+2. EEG: es wird ge-re-referenced mit REST (Average ü, u.A. damit noise, dass den ganzen Scalp betrifft, herausgefiltert (subtrahiert) werden kann. Aber bei PowerLine noise wird es verstärkt, da es ungleichmäßig die Scalp Regionen beeinflusst. Diese Argumentation trifft doch wahrscheinlich auf fast alle Umwelt- und internen Faktoren zu, also ist obiges Argument doch wieder entkräftet
+
+more line noise in REST and average (AV):
+
+Interesting observation! However, the line noise should be common in all electrodes, so why does it get amplified when applying the average/REST reference?
+
+That is true! Re-referencing should get rid of a lot of the 50 Hz noise (under the implication that the noise phase is the same at each electrode, which should be the case). If you look at unreferenced data, there should be much more 50 Hz noise.
