@@ -4,6 +4,8 @@ decide which environments to use (sckit learn pipelines?)- ask Alpay
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
 
 
+## Fragen:
+
 1. bandpass filter
 2. EEG: es wird ge-re-referenced mit REST (Average ü, u.A. damit noise, dass den ganzen Scalp betrifft, herausgefiltert (subtrahiert) werden kann. Aber bei PowerLine noise wird es verstärkt, da es ungleichmäßig die Scalp Regionen beeinflusst. Diese Argumentation trifft doch wahrscheinlich auf fast alle Umwelt- und internen Faktoren zu, also ist obiges Argument doch wieder entkräftet
 
@@ -22,4 +24,15 @@ That is true! Re-referencing should get rid of a lot of the 50 Hz noise (under t
   This sentence is in contradiction to this one:
     Question: If we resample the data with an upper bound of 100 Hz, what is the maximum frequency you can expect to be present in the data (keyword: nyquist frequency). Try to understand and explain why this is the case!
 As far as I understand, we should be able to see the maximum frequency of 50 Hz as according to the Nyquist rule, the sampling frequency must be at least twice the highest frequency that we wish to analyse. Any higher frequencies than 50 Hz might show aliasing where sampling is not fast enough to construct an accurate waveform record.
-_> Ich dachte, wenn ich einen 50Hz Filter wähle, ist es so schlau, da selbst im Hintergrund eine entsprechende Abtastrate zu wählen, damit kein Aliasing entsteht, und nicht dass ich selbst dann 100Hz als Cutoff Frequency wähle
+-> Ich dachte, wenn ich einen 50Hz Filter wähle, ist es so schlau, da selbst im Hintergrund eine entsprechende Abtastrate zu wählen, damit kein Aliasing entsteht, und nicht dass ich selbst dann 100Hz als Cutoff Frequency wähle
+
+
+
+# MEG
+- Was ist der Unterschied zwischen
+/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/ERP-01/ERP01_initial_tsss_mc.fif
+/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/raw/01_erp/231010/ERP01.fif
+
+- raw = mne.io.read_raw(f'/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/ERP-01/ERP01_initial_tsss_mc.fif', preload=True)
+  Funktion liest tsss_mc-1.fif Datei, die im selben Ordner liegt, statt obige...
+
