@@ -25,6 +25,8 @@ event_id = {'trigger_preimage': 10,
 
 
 - trial epoch difference
+- find events: die events sollten doch bei allen stimulus sein, für uns interessant: wenn ich sie plotte dann nach allen triger_gif_onset -> ist so aber nicht, kein Zusammenhang zwischen stimulus trigger und extrahierten (geplotteten) events erkennbar
+  -> Was genau plotte ich dann, wenn ich events plotte?
 
 
 
