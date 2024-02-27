@@ -24,5 +24,7 @@ event_id = {'trigger_preimage': 10,
                 'trigger_flanker_start': 104}
 
 
+- trial epoch difference
+
 
 
