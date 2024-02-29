@@ -18,14 +18,15 @@ kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadur
 
 # rausgefunden:
 `epochs.resample`:
-   - This method applies an anti-aliasing filter to prevent aliasing artifacts, which can occur when the signal contains frequencies above the Nyquist frequency after resampling.
-   - bigger choice of resampling factor, set sampling rate to an arbitrary value or resample to a non-integer factor.
-   - Higher computational cost compared to `epochs.decimate`.
+   - performs resampling by applying a finite impulse response (FIR) filter to the data
+   - applies an anti-aliasing filter
+   - bigger choice of resampling factor, set sampling rate to an arbitrary value or resample to a non-integer factor
+   - Higher computational cost compared to `epochs.decimate`
 
 `epochs.decimate`:
-   - It reduces the number of samples by keeping every `decim`-th sample and discarding the others.
+   - It reduces the number of samples by keeping every `decim`-th sample and discarding the others
    - It doesn't apply an anti-aliasing filter by default
-   - simple and quick downsampling operation by an integer factor.
+   - simple and quick downsampling operation by an integer factor
 
 
 
