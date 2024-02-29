@@ -18,6 +18,9 @@ kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadur
 - find events: die events sollten doch bei allen stimulus sein, für uns interessant: wenn ich sie plotte dann nach allen triger_gif_onset -> ist so aber nicht, kein Zusammenhang zwischen stimulus trigger und extrahierten (geplotteten) events erkennbar
   -> Was genau plotte ich dann, wenn ich events plotte?
 
+- look at ICA plots: most of them lie outside the scalp: how many do we want to reject? Does it really show the heratbeat and eyeblinks?
+
+
 # rausgefunden:
 `epochs.resample`:
    - performs resampling by applying a finite impulse response (FIR) filter to the data
