@@ -1,9 +1,9 @@
 decide which environments to use (sckit learn pipelines?)- ask Alpay 
-
-
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
 
 ## To-Dos:
+- zuerst ICa oder find events/create epochs ?
+  
 - see if I can use even more caching for faster execution
   
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
