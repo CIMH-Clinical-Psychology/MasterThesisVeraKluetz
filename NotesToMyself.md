@@ -1,10 +1,11 @@
 decide which environments to use (sckit learn pipelines?)- ask Alpay 
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
+PUG - Stefanie Engelhardt (nicht Melanie Fritz) fragen wegen Funding, Bahn 240€ Hin- und Rückfahrt Mi bis So, 60-70€ p.P. pro Tag (sehr günstig für da), 110€ Konferenz gebühr
 
 ## To-Dos:
-- zuerst ICa oder find events/create epochs ?
+
   
-- see if I can use even more caching for faster execution
+
   
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
 
@@ -14,6 +15,7 @@ kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadur
 
 
 ## Fragen:
+- bandpass filter statt inkl notch filter, ist das gut?
 - epochs.plot(show=False) -> manchmal gibt es epochs, bei denen das Signal 0 ist, kein 'graph' in dieser Epoche vorhanden in keinem einzigen channel (bei Participant 1 deutlich häufiger als bei Par 2)
 - find events: die events sollten doch bei allen stimulus sein, für uns interessant: wenn ich sie plotte dann nach allen triger_gif_onset -> ist so aber nicht, kein Zusammenhang zwischen stimulus trigger und extrahierten (geplotteten) events erkennbar
   -> Was genau plotte ich dann, wenn ich events plotte?
@@ -21,17 +23,6 @@ kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadur
 - look at ICA plots: most of them lie outside the scalp: how many do we want to reject? Does it really show the heratbeat and eyeblinks?
 
 
-# rausgefunden:
-`epochs.resample`:
-   - performs resampling by applying a finite impulse response (FIR) filter to the data
-   - applies an anti-aliasing filter
-   - bigger choice of resampling factor, set sampling rate to an arbitrary value or resample to a non-integer factor
-   - Higher computational cost compared to `epochs.decimate`
-
-`epochs.decimate`:
-   - It reduces the number of samples by keeping every `decim`-th sample and discarding the others
-   - It doesn't apply an anti-aliasing filter by default
-   - simple and quick downsampling operation by an integer factor
 
 
 
