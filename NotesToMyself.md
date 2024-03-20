@@ -4,7 +4,8 @@ PUG - Stefanie Engelhardt (nicht Melanie Fritz) fragen wegen Funding, Bahn 240�
 
 ## To-Dos:
 
-  
+  RuntimeWarning: The data you passed to ICA.apply() was baseline-corrected. Please note that ICA can introduce DC shifts, therefore you may wish to consider baseline-correcting the cleaned data again.
+  ica_out = ica_in.apply(epochs)
 
   
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
@@ -16,6 +17,7 @@ PUG - Stefanie Engelhardt (nicht Melanie Fritz) fragen wegen Funding, Bahn 240�
 
 ## Fragen:
 - bandpass filter statt inkl notch filter, ist das gut?
+- warum greift joblib beim ersten Durchlauf schon auf gespeicherte Werte zu? evt output falsch verstanden und nur Berechnung wird durchgeführt?
 - epochs.plot(show=False) -> manchmal gibt es epochs, bei denen das Signal 0 ist, kein 'graph' in dieser Epoche vorhanden in keinem einzigen channel (bei Participant 1 deutlich häufiger als bei Par 2)
 - find events: die events sollten doch bei allen stimulus sein, für uns interessant: wenn ich sie plotte dann nach allen triger_gif_onset -> ist so aber nicht, kein Zusammenhang zwischen stimulus trigger und extrahierten (geplotteten) events erkennbar
   -> Was genau plotte ich dann, wenn ich events plotte?
