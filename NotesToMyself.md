@@ -3,7 +3,7 @@
 
 decide which environments to use (sckit learn pipelines?)- ask Alpay 
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
-PUG - Stefanie Engelhardt (nicht Melanie Fritz) fragen wegen Funding, Bahn 240€ Hin- und Rückfahrt Mi bis So, 60-70€ p.P. pro Tag (sehr günstig für da), 110€ Konferenz gebühr
+PUG, Bahn 240€ Hin- und Rückfahrt Mi bis So, 60-70€ p.P. pro Tag (sehr günstig für da), 110€ Konferenz gebühr
 
 ## To-Dos:
 
