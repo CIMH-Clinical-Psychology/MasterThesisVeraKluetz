@@ -23,9 +23,8 @@ cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache' #'/home/vera
 folderpath = (f"/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/")
 
 #set folderpath, where the resulting epochs should be stored
-epochs_folderpath = (f"/home/vera.kluetz/epochs/")
-#(f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
-
+epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+#(f"/home/vera.kluetz/epochs/")
 
 # -------------------- initial setup and function definition -----------------
 
@@ -65,8 +64,14 @@ def ica_fit_cached(ica_in, data):
 
 @mem.cache
 def autoreject_fit_cached(ar_in, epochs):
+    print('---------------------------------before')
+    print(epochs)
     ar_out = ar_in.fit(epochs)
-    return ar_out
+    #todo: here, I give out the edited data and the resulting object, should I also do that for other cached functions?
+    #todo: Do I even correctly give out the edited epochs and not the original epochs?
+    print('---------------------------------after')
+    print(epochs)
+    return ar_out, epochs
 
 @mem.cache
 def ica_apply_cached(ica_in, epochs):
@@ -78,7 +83,7 @@ def ica_apply_cached(ica_in, epochs):
 
 # creates a list of all participant numbers from 01 to 35 so that we can loop through them
 par_numbers = [str(i).zfill(2) for i in
-               range(1, 36)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
+               range(1, 2)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
 
 # loop through each participant's data
 for participant in par_numbers:
@@ -150,7 +155,7 @@ for participant in par_numbers:
     ar = autoreject.AutoReject(n_jobs=-1, verbose=False)
     #todo: does the following substitution by cached function work properly?
     #ar.fit(epochs)
-    ar = autoreject_fit_cached(ar, epochs)
+    ar, epochs = autoreject_fit_cached(ar, epochs)
 
     # create downsampled epochs
     # sampling_rate = 200
@@ -191,11 +196,9 @@ for participant in par_numbers:
 
 
     #--------------------- save epochs ---------------------------------------
-    #todo: what happens if the file already exists?
-    #final_epochs = epochs.copy()
-    #filename_epoch = ("par" + str(participant) + "_" + str(next(iter(eve_id))) +"_"+ str(tmin) +"_"+ str(tmax) +"_"+ str(n_components))
-    #epoch_file_path = os.path.join(epochs_folderpath, f'{filename_epoch}-epo.fif')
-    #final_epochs.save(epoch_file_path, fmt='double', overwrite=True)
+    filename_epoch = ("par" + str(participant) + "_" + str(next(iter(eve_id))) +"_"+ str(tmin) +"_"+ str(tmax) +"_"+ str(n_components))
+    epoch_file_path = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
+    epochs.save(epoch_file_path, fmt='double', overwrite=True)
 
 
 end_time = time.time()
