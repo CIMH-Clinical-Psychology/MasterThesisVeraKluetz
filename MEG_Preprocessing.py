@@ -1,4 +1,5 @@
 ### code taken and altered from https://github.com/natmegsweden/meeg_course_mne/blob/master/tutorial_01a_preprocessing.md
+### as well as from Alper Koelgesiz, on GitHub MEGInternshipAlper/EEG_Many_Alper/Preprocessing.py
 ### 22.02.2024
 ### vera.kluetz@zi-mannheim.de
 
@@ -8,17 +9,22 @@ import time
 from joblib import Memory
 import warnings
 import matplotlib.pyplot as plt
+import autoreject
+import os
 import numpy as np
 
 
 # -------------------- user specifics ----------------------------------------
 
 # set cache directory for faster execution with joblib Memory package
-cachedir = '/home/vera.kluetz/joblib_cache'
+cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache' #'/home/vera.kluetz/joblib_cache'
 
-# set file path
-# we want to use a file with this format:  /zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/ERP-01/ERP01_initial_tsss_mc.fif
+# set file path, where the data can be found
 folderpath = (f"/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/")
+
+#set folderpath, where the resulting epochs should be stored
+epochs_folderpath = (f"/home/vera.kluetz/epochs/")
+#(f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 
 
 # -------------------- initial setup and function definition -----------------
@@ -34,11 +40,9 @@ warnings.filterwarnings("ignore",
                         message=".*does not conform to MNE naming conventions. All raw files should end with raw.fif, raw_sss.fif, raw_tsss.fif*",
                         category=RuntimeWarning, module="mne")
 
-
-# define cache functions for faster execution
-# cached_func = mne.cache(mne.io.read_raw)
-
+# define cached functions for faster execution
 mem = Memory(cachedir)
+# cached_func = mne.cache(mne.io.read_raw)
 @mem.cache
 def read_raw_cached(fif_filepath):
     raw = mne.io.read_raw_fif(fif_filepath, preload=True, verbose=False)
@@ -50,30 +54,40 @@ def create_epochs_cached(raw, eve, event_id, tmin, tmax):
     return epochs
 
 @mem.cache
-def filter_cached(data, lower_bound, higher_bound):
-    data = data.filter(lower_bound, higher_bound)
-    return data
+def filter_cached(data_in, lower_bound, higher_bound):
+    data_out = data_in.filter(lower_bound, higher_bound)
+    return data_out
 
 @mem.cache
-def ica_fit_cached(data):
-    ica_fit = ica.fit(data, picks='meg')
-    return ica_fit
+def ica_fit_cached(ica_in, data):
+    ica_out = ica_in.fit(data, picks='meg')
+    return ica_out
+
+@mem.cache
+def autoreject_fit_cached(ar_in, epochs):
+    ar_out = ar_in.fit(epochs)
+    return ar_out
+
+@mem.cache
+def ica_apply_cached(ica_in, epochs):
+    ica_out = ica_in.apply(epochs)
+    return ica_out
+
 
 # -------------------- load data ---------------------------------------------
 
 # creates a list of all participant numbers from 01 to 35 so that we can loop through them
 par_numbers = [str(i).zfill(2) for i in
-               range(1, 2)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
+               range(1, 36)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
 
 # loop through each participant's data
 for participant in par_numbers:
-    fif_filepath = folderpath + f"ERP-{participant}/ERP{participant}_initial_tsss_mc.fif"
 
-    # show metadata
-    # info = mne.io.read_info(fif_filepath, 'WARNING')
-    # print(info.keys())
-    # print(info['ch_names'])
-    # print(info)
+    print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+    print(f'This is participant number {participant}')
+    print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+
+    fif_filepath = folderpath + f"ERP-{participant}/ERP{participant}_initial_tsss_mc.fif"
 
     # read raw data
     try:
@@ -83,14 +97,13 @@ for participant in par_numbers:
             f"Participant number {participant} does not exist or there has been problems with reading it's file. Proceeding with next participant.")
         continue
     raw_copy = raw.copy()
-    # print(raw.info)
 
     # check if we have more than 25 Minutes of Recordings included
     assert len(raw) > 60 * 25 * raw.info['sfreq']  # 50 sec * 25 min * sampling frequency
 
-    # explore which channel types are there
-    # channel_types = raw.get_channel_types()
-    # print("Available Channel Types:", channel_types)
+    # Set EOG channel
+    eogs = {'BIO002': 'eog', 'BIO003': 'eog'}
+    raw.set_channel_types({**eogs})
 
 
     # -------------------- filtering -----------------------------------------
@@ -104,79 +117,9 @@ for participant in par_numbers:
     raw = filter_cached(raw, 0.1, 49)
 
 
-    # -------------------- idependent component analysis ---------------------
-
-    #raw_ICA_for_fitting = raw.copy().filter(1, None)
-    raw_ICA_for_fitting = filter_cached(raw.copy(), 1, None)
-    print(raw_ICA_for_fitting.info)
-
-    ica_method = 'fastica'
-    n_components = 40  # todo: try with 50 maybe?
-    random_state = 99
-    ica = mne.preprocessing.ICA(n_components=n_components, method=ica_method, random_state=random_state)
-    #todo: is this the same as the one below? Does the return of the cached obj work?
-    ica = ica_fit_cached(raw_ICA_for_fitting)
-    #ica.fit(raw_ICA_for_fitting, picks='meg')
-
-    # check ICA solution
-    explained_var_ratio = ica.get_explained_variance_ratio(raw)  # todo: raw or raw_ICA_for_fitting?
-    for channel_type, ratio in explained_var_ratio.items():
-        print(
-            f'Fraction of {channel_type} variance explained by all components: '
-            f'{ratio}'
-        )
-
-    ## plot ICA
-    ## todo: look at plots: most of them lie outside the scalp: how many do we want to reject? Does it really show the heratbeat and eyeblinks?
-    #ica.plot_sources(raw)  # right click the component name to view its properties  ##todo: raw or raw_ICA_for_fitting?
-    #ica.plot_components(inst=raw)  # click the components to view its properties  ##todo: raw or raw_ICA_for_fitting?
-    ## or
-    #ica.plot_properties(raw, picks=[0, 1])  ##todo: raw or raw_ICA_for_fitting?
-
-    ## todo: related to the one above, check if these two are the ones that we want to exclude
-    ## todo: This approach is undesired because it is done manually? Prefer EOG and ECG semi-automatic detection
-    ## Exclude components
-    ## ica.exclude = [0, 1]
-
-    ## todo: perform some sanity checks for EOG ECG rejection, like plotting, since they have not been tested yet
-    ## todo: code taken from Alper, compare with the one from MEG Github guy
-
-
-    # -------------------- reject EOG and ECG components ---------------------
-
-    # find bad ecg and eog channels
-    eog_indices_02, eog_scores_02 = ica.find_bads_eog(raw, ch_name='BIO002')
-    eog_indices_03, eog_scores_03 = ica.find_bads_eog(raw, ch_name='BIO003')
-    ecg_indices, ecg_scores = ica.find_bads_ecg(raw, ch_name='BIO001')
-
-    print(f'eog_indices_02: {eog_indices_02}')
-    print(f'eog_scores_02: {eog_scores_02}')
-    print(f'eog_indices_03: {eog_indices_03}')
-    print(f'eog_scores_03: {eog_scores_03}')
-    print(f'ecg_indices: {ecg_indices}')
-    print(f'ecg_scores: {ecg_scores}')
-
-
-    # Apply ICA and exclude bad EOG components
-    # todo: add ecg_indices to excluded
-    ica.exclude = eog_indices_02
-    ica.exclude.extend(eog_indices_03)
-    ica.exclude.extend(ecg_indices)
-    ica.apply(raw)
-
-
     # -------------------- find events ---------------------------------------
 
     eve = mne.find_events(raw, stim_channel='STI101', min_duration=3 / raw.info['sfreq'])
-
-    # See unique events
-    # print(np.unique(eve[:, -1]))
-    # np.unique(eve[:, -1], return_counts=True)
-
-    # print amount of each event
-    # trigger_ids, counts = np.unique(eve[:, -1], return_counts=True)
-    # for trigger_ids, counts in zip(trigger_ids,counts):
-    #    print(f"Trigger ID {trigger_ids}: Count {counts}")
 
     # set event IDs
     event_id = {'trigger_preimage': 10,
@@ -186,58 +129,74 @@ for participant in par_numbers:
                 'trigger_valence_start': 101,
                 'trigger_arousal_start': 102,
                 'trigger_flanker_start': 104}
-    # trigger_reset = 0
-    # trigger_blank_post_feedback = 103
-    # 8 =
-    # 16 =
-    # 64 =
-    # 96 =
 
-    # only select events with trigger_gif_onset, ID 20
-    id_gif_onset = {'trigger_gif_onset': 20}
-    eve_gif_onset = eve[eve[:, 2] == 20]
-
-    # inspect events and triggers in raw data
-    # todo: why are events anywhere but not related at all with triggers???
-    raw.plot(events=eve_gif_onset, event_id=id_gif_onset, show=False)
-
-    # plot events
-    # fig = mne.viz.plot_events(eve, event_id=event_id)
+    # only select events with a certain trigger
+    eve_id = {'trigger_gif_onset': 20}
+    events = eve[eve[:, 2] == 20]
 
 
     # -------------------- create epochs -------------------------------------
 
-    tmin, tmax = -0.5, 2
-    # epochs = create_epochs_cached(raw_filt, eve, event_id, tmin, tmax)
-    # only gif_onset trigger id
-
-    epochs_gif_onset = create_epochs_cached(raw, eve_gif_onset, id_gif_onset, tmin, tmax)
-    # epochs_gif_onset = mne.Epochs(raw, events=eve_gif_onset, event_id=id_gif_onset, tmin=tmin, tmax=tmax)
-
-    epochs = epochs_gif_onset
+    tmin, tmax = -0.5, 1
+    epochs = create_epochs_cached(raw, events, eve_id, tmin, tmax)
     epochs.load_data()
-
-    # Print the channel types
-    # channel_types = epochs.info['ch_names']
-    # print("Channel Types:", channel_types)
-    # butterflyplot todo: what does the plot tell me?
-    # fig, ax = plt.subplots(2, 1, figsize=(6, 10))
-    # epochs.average().plot(spatial_colors=True, axes=ax)
-    # plt.tight_layout()
-
-    # todo: what does this plot tell me?
-    # fig = epochs.plot_image(picks='mag')[0]
 
     print(f"Bad channels: {epochs.info['bads']}")
 
     # Plot epochs
-    epochs.plot(show=False)
+    #epochs.plot(show=False)
+
+    # reject bad epochs automatically
+    ar = autoreject.AutoReject(n_jobs=-1, verbose=False)
+    #todo: does the following substitution by cached function work properly?
+    #ar.fit(epochs)
+    ar = autoreject_fit_cached(ar, epochs)
 
     # create downsampled epochs
     # sampling_rate = 200
     # epochs_resampled = epochs.resample(sampling_rate, npad="auto")
 
-    # save epoch files
+
+    # -------------------- idependent component analysis ---------------------
+
+    raw_ICA_for_fitting = filter_cached(raw.copy(), 1, None)
+
+    ica_method = 'fastica'
+    n_components = 40  # todo: try with 50 maybe?
+    random_state = 99
+    ica_def = mne.preprocessing.ICA(n_components=n_components, method=ica_method, random_state=random_state)
+    ica = ica_fit_cached(ica_def, raw_ICA_for_fitting)
+
+    # check ICA solution
+    explained_var_ratio = ica.get_explained_variance_ratio(raw)  # todo: raw or raw_ICA_for_fitting?
+    for channel_type, ratio in explained_var_ratio.items():
+        print(
+            f'Fraction of {channel_type} variance explained by all components: '
+            f'{ratio}'
+        )
+
+
+    # -------------------- reject EOG and ECG components ---------------------
+
+    # find bad ecg and eog channels
+    eog_indices, eog_scores = ica.find_bads_eog(raw)
+    ecg_indices, ecg_scores = ica.find_bads_ecg(raw, ch_name='BIO001')
+
+    # Apply ICA and exclude bad EOG components
+    # todo: eog is two arrays in one array, and only one indice, so does it really exclude the correct component?
+    ica.exclude = eog_indices
+    ica.exclude.extend(eog_indices)
+    ica.exclude.extend(ecg_indices)
+    ica = ica_apply_cached(ica, epochs)
+
+
+    #--------------------- save epochs ---------------------------------------
+    #todo: what happens if the file already exists?
+    #final_epochs = epochs.copy()
+    #filename_epoch = ("par" + str(participant) + "_" + str(next(iter(eve_id))) +"_"+ str(tmin) +"_"+ str(tmax) +"_"+ str(n_components))
+    #epoch_file_path = os.path.join(epochs_folderpath, f'{filename_epoch}-epo.fif')
+    #final_epochs.save(epoch_file_path, fmt='double', overwrite=True)
+
 
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
