@@ -164,16 +164,16 @@ for participant in par_numbers:
 
     # -------------------- idependent component analysis ---------------------
 
-    raw_ICA_for_fitting = filter_cached(raw.copy(), 1, None)
+    epochs_ICA_for_fitting = filter_cached(epochs.copy(), 1, None)
 
     ica_method = 'fastica'
     n_components = 40  # todo: try with 50 maybe?
     random_state = 99
     ica_def = mne.preprocessing.ICA(n_components=n_components, method=ica_method, random_state=random_state)
-    ica = ica_fit_cached(ica_def, raw_ICA_for_fitting)
+    ica = ica_fit_cached(ica_def, epochs_ICA_for_fitting)
 
     # check ICA solution
-    explained_var_ratio = ica.get_explained_variance_ratio(raw)  # todo: raw or raw_ICA_for_fitting?
+    explained_var_ratio = ica.get_explained_variance_ratio(epochs)  # todo: raw or raw_ICA_for_fitting?
     for channel_type, ratio in explained_var_ratio.items():
         print(
             f'Fraction of {channel_type} variance explained by all components: '
@@ -188,6 +188,7 @@ for participant in par_numbers:
     ecg_indices, ecg_scores = ica.find_bads_ecg(raw, ch_name='BIO001')
 
     # Apply ICA and exclude bad EOG components
+    #todo: I find the bad eog and ecg channels in the raw data and then remove those from the epochs, do the indices and still fit, then?
     # todo: eog is two arrays in one array, and only one indice, so does it really exclude the correct component?
     ica.exclude = eog_indices
     ica.exclude.extend(eog_indices)
