@@ -11,6 +11,7 @@ import warnings
 import matplotlib.pyplot as plt
 import autoreject
 import os
+import pandas as pd
 import numpy as np
 
 
@@ -64,13 +65,9 @@ def ica_fit_cached(ica_in, data):
 
 @mem.cache
 def autoreject_fit_cached(ar_in, epochs):
-    print('---------------------------------before')
-    print(epochs)
     ar_out = ar_in.fit(epochs)
-    #todo: here, I give out the edited data and the resulting object, should I also do that for other cached functions?
+    #todo: here, I return the edited data and the resulting object, should I also do that for other cached functions?
     #todo: Do I even correctly give out the edited epochs and not the original epochs?
-    print('---------------------------------after')
-    print(epochs)
     return ar_out, epochs
 
 @mem.cache
@@ -83,7 +80,7 @@ def ica_apply_cached(ica_in, epochs):
 
 # creates a list of all participant numbers from 01 to 35 so that we can loop through them
 par_numbers = [str(i).zfill(2) for i in
-               range(1, 2)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
+               range(1, 36)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
 
 # loop through each participant's data
 for participant in par_numbers:
@@ -197,9 +194,16 @@ for participant in par_numbers:
 
 
     #--------------------- save epochs ---------------------------------------
+    df = epochs.to_data_frame(index=["condition", "epoch", "time"])
+    df.sort_index(inplace=True)
+
+
+
     filename_epoch = ("par" + str(participant) + "_" + str(next(iter(eve_id))) +"_"+ str(tmin) +"_"+ str(tmax) +"_"+ str(n_components))
     epoch_file_path = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
-    epochs.save(epoch_file_path, fmt='double', overwrite=True)
+
+    df.to_csv(os.path.join(epochs_folderpath, f"{filename_epoch}-epo.csv"))
+    #epochs.save(epoch_file_path, fmt='double', overwrite=True)
 
 
 end_time = time.time()
