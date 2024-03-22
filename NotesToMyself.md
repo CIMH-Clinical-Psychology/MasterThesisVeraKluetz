@@ -1,3 +1,6 @@
+nur 280 kanäle in Auswertung statt 360... ist eyetracking Kanal noch drin?
+Ist eyetracking Kanal Teil von picks=meg?
+
 677 Sekunden (ca 11 Minuten) pro Participant caching first time (without saving)
 5h 45 min gesamte Datei with csv saving
 
