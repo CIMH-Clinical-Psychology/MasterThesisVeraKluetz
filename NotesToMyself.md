@@ -1,5 +1,5 @@
-677 Sekunden (ca 11 Minuten) pro Participant caching first time
-
+677 Sekunden (ca 11 Minuten) pro Participant caching first time (without saving)
+5h 45 min gesamte Datei with csv saving
 
 decide which environments to use (sckit learn pipelines?)- ask Alpay 
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
