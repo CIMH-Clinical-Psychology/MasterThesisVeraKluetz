@@ -31,7 +31,7 @@ if username == 'vera.kluetz' and host=='zilxap29':  # klipscalc host
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
 
 if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
-    cachedir = f'{home}/Desktop/'  # this folder is likely local, so much faster
+    cachedir = f'{home}/Desktop/joblib/'  # this folder is likely local, so much faster
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
 
 # ENTER YOUR DIRS USING THE FOLLOWING TEMPLATE
