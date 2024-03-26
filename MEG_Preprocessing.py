@@ -75,7 +75,7 @@ def valid_filename(string):
 def fit_apply_ica_cached(mne_obj, mne_obj_meg, ica_def):
     """contains all ICA calculations,
     mne_obj contains EOG and ECG data + MEG/EEG
-    mne_obj_meg contains only EOG and ECG data
+    mne_obj_meg contains only MEG channels (usually 306)
     expects a raw or epochs item
     returns the same object but with EOG and ECG components removed"""
     # work on a copy of the data, as some operations are in place
