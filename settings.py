@@ -8,6 +8,7 @@ Created on Mon Mar 25 15:11:07 2024
 import os
 import getpass
 import platform
+import matplotlib.pyplot as plt
 #%%##########
 # SETTINGS
 #############
@@ -29,6 +30,8 @@ datadir = None
 if username == 'vera.kluetz' and host=='zilxap29':  # klipscalc host
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
+    # Use the 'TkAgg' backend for interactive plotting
+    plt.switch_backend('TkAgg')
 
 if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
     cachedir = f'{home}/Desktop/joblib/'  # this folder is likely local, so much faster
@@ -39,5 +42,6 @@ if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
 #     datadir = '/hobbes/Klips/EMO_REACT-prestudy/participant_data/'
 #     cachedir = f'{home}/Desktop/joblib-cache/'
 
-else:
-    raise Exception(f'No profile found for {username} @ {host}. Please enter in settings.py')
+#todo: include else statement
+#else:
+#    raise Exception(f'No profile found for {username} @ {host}. Please enter in settings.py')

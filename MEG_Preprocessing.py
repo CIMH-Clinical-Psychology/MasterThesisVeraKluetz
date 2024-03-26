@@ -8,7 +8,6 @@ import mne
 import time
 from joblib import Memory
 import warnings
-import matplotlib.pyplot as plt
 import autoreject
 import os
 import pandas as pd
@@ -22,18 +21,11 @@ os.nice(1)
 
 # -------------------- user specifics ----------------------------------------
 
-# set cache directory for faster execution with joblib Memory package
-
-# set file path, where the data can be found
-
 #set folderpath, where the resulting epochs should be stored
 epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 #(f"/home/vera.kluetz/epochs/")
 
 # -------------------- initial setup and function definition -----------------
-
-# Use the 'TkAgg' backend for interactive plotting
-#plt.switch_backend('TkAgg')
 
 # measure code execution
 start_time = time.time()
@@ -47,11 +39,11 @@ warnings.filterwarnings("ignore",
 mem = Memory(settings.cachedir if settings.caching else None)  # only enable caching if wanted
 # cached_func = mne.cache(mne.io.read_raw)
 @mem.cache
-def read_raw_filtered_cached(fif_filepath, highpass=0.1, lowpass=49):
+def read_raw_filtered_cached(fif_filepath, highpass=0.1, lowpass=50):
     raw = mne.io.read_raw_fif(fif_filepath, preload=True, verbose='INFO')
     raw.filter(highpass, lowpass, n_jobs=-1)
+    raw.notch_filter(np.arange(50, 251, 50))
     return raw
-
 
 def valid_filename(string):
     """strips a string of all characters that might be problems for filenames
@@ -138,7 +130,6 @@ for participant in par_numbers:
         print(
             f"Participant number {participant} does not exist or there has been problems with reading it's file. Proceeding with next participant.")
         continue
-    # raw_copy = raw.copy()
 
     # check if we have more than 25 Minutes of Recordings included
     assert len(raw) > 60 * 25 * raw.info['sfreq']  # 50 sec * 25 min * sampling frequency
@@ -147,14 +138,6 @@ for participant in par_numbers:
     ch_types = {'BIO001':'ecg', 'BIO002': 'eog', 'BIO003': 'eog'}
     raw.set_channel_types({**ch_types})
 
-    # -------------------- filtering -----------------------------------------
-
-    # low- and highpass data
-    # raw.filter(0.1, 50)  # , method='fir')
-    # notch filter
-    # raw.notch_filter(np.arange(50, 251, 50))
-    # todo: is this clever?
-    # raw.filter(0.1, 49)
 
     # -------------------- find events ---------------------------------------
 
@@ -171,7 +154,6 @@ for participant in par_numbers:
 
     # only select events with a certain trigger
     event_id_selection = event_id['trigger_gif_onset']
-    # events = eve[eve[:, 2] == 20]
 
     assert len(events)==1440, 'sanity check failed'
 
@@ -208,7 +190,7 @@ for participant in par_numbers:
     # sampling_rate = 200
     # epochs_resampled = epochs.resample(sampling_rate, npad="auto")
 
-    # -------------------- idependent component analysis ---------------------
+    # -------------------- independent component analysis ---------------------
     print('###  running ica')
     ica_method = 'fastica'
     n_components = 40  # todo: try with 50 maybe?
@@ -218,7 +200,7 @@ for participant in par_numbers:
     epochs_meg, ica = fit_apply_ica_cached(epochs_orig, epochs_meg, ica_def)
 
     # check ICA solution
-    explained_var_ratio = ica.get_explained_variance_ratio(epochs_meg)  # todo: raw or raw_ICA_for_fitting?
+    explained_var_ratio = ica.get_explained_variance_ratio(epochs_meg)
     for channel_type, ratio in explained_var_ratio.items():
         print(
             f'Fraction of {channel_type} variance explained by all components: '
@@ -227,10 +209,15 @@ for participant in par_numbers:
 
     #--------------------- save epochs ---------------------------------------
     print('###  saving epochs')
-    filename_epoch = f'{participant=}_{event_id_selection=}_{tmin=}_{tmax=}-epo.fif'
+    filename_epoch = f'{participant=}_{event_id_selection=}_{tmin=}_{tmax=}'
     filename_epoch = valid_filename(filename_epoch)
     epoch_file_path = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
     epochs_meg.save(epoch_file_path, fmt='double', overwrite=True)
+
+    df = epochs_meg.to_data_frame(index=["condition", "epoch", "time"])
+    df.sort_index(inplace=True)
+    epoch_file_path_csv = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.csv")
+    df.to_csv(epoch_file_path_csv) #todo: make it overwritable
 
 
 
