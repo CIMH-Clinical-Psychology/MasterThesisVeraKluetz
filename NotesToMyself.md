@@ -1,12 +1,11 @@
 nur 280 kanäle in Auswertung statt 360... ist eyetracking Kanal noch drin?
 Ist eyetracking Kanal Teil von picks=meg?
 
-677 Sekunden (ca 11 Minuten) pro Participant caching first time (without saving)
-5h 45 min gesamte Datei with csv saving
+ca 8 Minuten pro Participant caching first time, 4h 40 min gesamte Datei with fif and csv saving
 
 decide which environments to use (sckit learn pipelines?)- ask Alpay 
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
-PUG, Bahn 240€ Hin- und Rückfahrt Mi bis So, 60-70€ p.P. pro Tag (sehr günstig für da), 110€ Konferenz gebühr
+PUG, Bahn 240€ Hin- und Rückfahrt Mi bis So, 60-70€ p.P. pro Tag (sehr günstig für da), 110€ Konferenz Gebühr
 
 ## To-Dos:
 
