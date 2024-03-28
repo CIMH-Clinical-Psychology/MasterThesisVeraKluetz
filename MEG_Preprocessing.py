@@ -115,6 +115,9 @@ par_numbers = [str(i).zfill(2) for i in
 # loop through each participant's data
 for participant in par_numbers:
 
+    if participant in ('25', '28', '31'):  # these are missing
+        continue
+
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
@@ -128,7 +131,7 @@ for participant in par_numbers:
         raw = read_raw_filtered_cached(fif_filepath)
     except:
         print(
-            f"Participant number {participant} does not exist or there has been problems with reading it's file. Proceeding with next participant.")
+            f"There have been problems with reading the raw data in the fif file of Participant number {participant}. Proceeding with next participant.")
         continue
 
     # check if we have more than 25 Minutes of Recordings included

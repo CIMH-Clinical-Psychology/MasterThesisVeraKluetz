@@ -87,7 +87,7 @@ csv_file = '/home/simon/Nextcloud/ZI/2023.05 EMO-REACT-prestudy/data/40_EMO_REAC
 if __name__=='__main__':
     # by running this file as a main script you can run tests that check
     # if all data can be loaded
-    for subj in range(1,35):
+    for subj in range(1,36):
         if subj in (25, 28, 31):  # these are missing
             continue
         df_subj = load_exp_data(subj)
