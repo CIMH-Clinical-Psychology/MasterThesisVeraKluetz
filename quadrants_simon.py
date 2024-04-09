@@ -51,8 +51,9 @@ def load_resample(participant, tmin=-0.5, tmax=1, picks='meg'):
 fig, axs, ax_bottom = utils.make_fig(n_axs=len(participants), n_bottom=[0, 0, 1])
 
 n_splits = 5
-tmin = -0.5
-tmax = 1
+tmin = -2.5
+tmax = 2.5
+picks = 'eog'
 
 df_all = pd.DataFrame()
 
@@ -60,7 +61,9 @@ df_all = pd.DataFrame()
 base_clf = LogisticRegression(solver="liblinear", max_iter=100)  # liblinear is faster than lbfgs
 
 for i, participant in enumerate(tqdm(participants)):
-    times, data_x, data_y = load_resample(participant, tmin=tmin, tmax=tmax, picks='eog')
+    times, data_x, data_y = load_resample(participant, tmin=tmin, tmax=tmax, picks=picks)
+
+    # np.random.shuffle(data_y)  # shuffle data for checking randomness
 
     pipeline = make_pipeline(
         StandardScaler(),
@@ -87,3 +90,4 @@ for i, participant in enumerate(tqdm(participants)):
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
     utils.normalize_lims(axs)
     plt.pause(0.1)  # necessary for plotting to update
+    fig.suptitle('Decoding on {picks=}')
