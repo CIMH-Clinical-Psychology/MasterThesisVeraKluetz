@@ -11,7 +11,15 @@ e.g. loading of responses from participants
 import os
 import settings
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import warnings
+import seaborn as sns
+from joblib import Memory
 
+mem = Memory(settings.cachedir)
+
+@mem.cache
 def load_exp_data(subj):
     """
     load experiment data from psychopy csv log file
@@ -41,6 +49,8 @@ def load_exp_data(subj):
            'gif_shown_duration'             seconds the GIF was shown (roughly)
 
     """
+    if isinstance(subj, str) and subj.isdigit():
+        subj = int(subj)
     assert isinstance(subj, int)
     subj_dir = settings.datadir + f'/ERP-{subj:02d}'
 
@@ -81,6 +91,123 @@ def load_exp_data(subj):
     df.index.name = 'trial_nr'
     assert (n_trials:=len(df))==144, f'more or less than 144 trials in file {n_trials=}'
     return df
+
+
+def make_fig(n_axs, n_bottom=2, no_ticks=False, suptitle='',
+             xlabel='', ylabel='', figsize=None, despine=True, subplot_kws={}):
+    """
+    to create a grid space with RxC rows and a large row with axis on the bottom
+    that are slightly larger (e.g. for summary plots)
+    will automatically try to put axis in a square layout, but return a
+    flattened axs list
+
+    Parameters
+    ----------
+    n_axs : int
+        number of axis the plot should contain for individual plots.
+    n_bottom : int, list, optional
+        how many summary plots at the bottom should be contained
+        can also be a list of format [bool, bool, ....] indicating positions
+        that should be filled, e.g. [0, 1, 1] will create a bottom
+        plot with two of three positions filled. The default is 2.
+    no_ticks : bool, optional
+        remove x/y ticks. The default is False.
+    suptitle : str, optional
+        super title of the plot. The default is ''.
+    xlabel : str, optional
+        xlabel. The default is ''.
+    ylabel : str, optional
+        ylabel. The default is ''.
+    figsize : list, optional
+        [w, h] of figure, same as plt.Figure. The default is None.
+    despine : bool, optional
+        call sns.despine(). The default is True.
+    subplot_kws : dict, optional
+        additional plt.subplot keywords. The default is {}.
+
+    Returns
+    -------
+    fig, axs, *bottom_axis
+        figure object
+        all axis in a flattened array
+        bottom axis of the summary plot
+
+    """
+
+
+    COL_MULT = 10 # to accomodate also too large axis
+    # some heuristic for finding optimal rows and columns
+    for columns in [2, 4, 6, 8]:
+        rows = np.ceil(n_axs/columns).astype(int)
+        if columns>=rows:
+            break
+    assert columns*rows>=n_axs
+
+    if isinstance(n_bottom, int):
+        n_bottom = [1 for _ in range(n_bottom)]
+
+    COL_MULT = 1
+    if len(n_bottom)>0:
+        for COL_MULT in range(1, 12):
+            if (columns*COL_MULT)%len(n_bottom)==0:
+                break
+        if not (columns*COL_MULT)%len(n_bottom)==0:
+            warnings.warn(f'{columns} cols cannot be evenly divided by {len(n_bottom)} bottom plots')
+    fig = plt.figure(dpi=75, constrained_layout=True, figsize=figsize)
+    # assuming maximum 30 participants
+    gs = fig.add_gridspec((rows+2*(len(n_bottom)>0)), columns*COL_MULT) # two more for larger summary plots
+    axs = []
+
+    # first the individual plot axis for each participant
+    for x in range(rows):
+        for y in range(columns):
+            ax = fig.add_subplot(gs[x, y*COL_MULT:(y+1)*COL_MULT],
+                                 **subplot_kws)
+            if no_ticks:
+                ax.set_xticks([])
+                ax.set_yticks([])
+            axs.append(ax)
+
+    fig.suptitle(suptitle)
+
+    if len(n_bottom)==0:
+        return fig, axs
+
+    # second the two graphs with all data combined/meaned
+    axs_bottom = []
+    step = np.ceil(columns*COL_MULT//len(n_bottom)).astype(int)
+    for b, i in enumerate(range(0, columns*COL_MULT, step)):
+        if n_bottom[b]==0: continue # do not draw* this plot
+        ax_bottom = fig.add_subplot(gs[rows:, i:(i+step)], **subplot_kws)
+        if xlabel: ax_bottom.set_xlabel(xlabel)
+        if ylabel: ax_bottom.set_ylabel(ylabel)
+        if i>0 and no_ticks: # remove yticks on righter plots
+            ax_bottom.set_yticks([])
+        axs_bottom.append(ax_bottom)
+    if despine:
+        sns.despine(fig)
+    return fig, axs, *axs_bottom
+
+def normalize_lims(axs, which='both'):
+    """for all axes in axs: set axis limits to min/max of all other axs
+    this way all axes have same xlim/ylim
+
+    Parameters
+    ----------
+    axs : list
+        list of axes to normalize.
+    which : string, optional
+        Which axis to normalize. Can be 'x', 'y', 'xy' oder 'both'.
+
+    """
+    if which=='both':
+        which='xy'
+    for w in which:
+        ylims = [getattr(ax, f'get_{w}lim')() for ax in axs]
+        ymin = min([x[0] for x in ylims])
+        ymax = max([x[1] for x in ylims])
+        for ax in axs:
+            getattr(ax, f'set_{w}lim')([ymin, ymax])
 
 csv_file = '/home/simon/Nextcloud/ZI/2023.05 EMO-REACT-prestudy/data/40_EMO_REACT_prestudy_2023-09-20_20h57.56.068.csv'
 
