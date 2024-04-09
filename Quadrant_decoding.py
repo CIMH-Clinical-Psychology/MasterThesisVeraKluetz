@@ -57,7 +57,25 @@ def load_exp_data_cached(participant):
 
 def run_cv(clf, data_x_t, gif_pos, n_splits=5):
     """outsourced crossvalidation function to run on a single timepoint,
-    this way the function can be parallelized"""
+    this way the function can be parallelized
+
+    Parameters
+    ----------
+    clf : sklearn.Estimator
+        any object having a .fit and a .predict function (Pipeline, Classifier).
+    data_x_t : np.ndarray
+        numpy array with shape [examples, features].
+    gif_pos : np.ndarray, list
+        list or array of target variables.
+    n_splits : int, optional
+        number of splits. The default is 5.
+
+    Returns
+    -------
+    accs : list
+        list of accuracies, for each fold one.
+    """
+
     cv = StratifiedKFold(n_splits=n_splits)
 
     accs = []
@@ -147,7 +165,9 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     epochs.resample(100, n_jobs=-1, verbose='WARNING')  # for now resample to 100 to speed up computation
     data_x = epochs.get_data()
 
-    if len(data_x)<5: continue  # some participants have very few usable epochs
+    if len(data_x)<5:
+        axs[p].text(0.5, 0.5, f'{participant=} has only {len(data_x)} epochs, skip')
+        continue  # some participants have very few usable epochs
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
@@ -187,6 +207,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     ax_bottom.clear()  # clear axis from previous line
     sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
     ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
+    ax_bottom.set_title(f'Mean of {len(df_all.participants.unique())} participants')
     plt.pause(0.1)  # necessary for plotting to update
 
     # print('one participant over')

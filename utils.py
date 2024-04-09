@@ -95,8 +95,39 @@ def make_fig(n_axs, n_bottom=2, no_ticks=False, suptitle='',
     will automatically try to put axis in a square layout, but return a
     flattened axs list
 
-    returns: fig, axs(size=(rows*columns)), bottom_plots*
+    Parameters
+    ----------
+    n_axs : int
+        number of axis the plot should contain for individual plots.
+    n_bottom : int, list, optional
+        how many summary plots at the bottom should be contained
+        can also be a list of format [bool, bool, ....] indicating positions
+        that should be filled, e.g. [0, 1, 1] will create a bottom
+        plot with two of three positions filled. The default is 2.
+    no_ticks : bool, optional
+        remove x/y ticks. The default is False.
+    suptitle : str, optional
+        super title of the plot. The default is ''.
+    xlabel : str, optional
+        xlabel. The default is ''.
+    ylabel : str, optional
+        ylabel. The default is ''.
+    figsize : list, optional
+        [w, h] of figure, same as plt.Figure. The default is None.
+    despine : bool, optional
+        call sns.despine(). The default is True.
+    subplot_kws : dict, optional
+        additional plt.subplot keywords. The default is {}.
+
+    Returns
+    -------
+    fig, axs, *bottom_axis
+        figure object
+        all axis in a flattened array
+        bottom axis of the summary plot
+
     """
+
 
     COL_MULT = 10 # to accomodate also too large axis
     # some heuristic for finding optimal rows and columns
