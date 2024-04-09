@@ -3,6 +3,7 @@
 import pandas as pd
 import os
 from joblib import Memory
+from joblib import Parallel, delayed
 import time
 import settings
 import utils
@@ -11,9 +12,16 @@ from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import normalize
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import mne
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
+from tqdm import tqdm
+
+os.nice(1)  # make sure we're not clogging the CPU
+plt.ion()
 
 # -------------------- user specifics ----------------------------------------
 # folderpath, where the epochs are stored
@@ -47,13 +55,46 @@ def load_exp_data_cached(participant):
     df_subj = utils.load_exp_data(int(participant))
     return df_subj
 
+def run_cv(clf, data_x_t, gif_pos, n_splits=5):
+    """outsourced crossvalidation function to run on a single timepoint,
+    this way the function can be parallelized"""
+    cv = StratifiedKFold(n_splits=n_splits)
+
+    accs = []
+    # Loop over each fold
+    for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
+        x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
+        y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
+
+        # clf can also be a pipe object
+        clf.fit(x_train, y_train)
+
+        #model = StandardScaler().fit(x_train, y_train)
+
+        preds = clf.predict(x_test)
+        #preds = model.predict(x_test)
+
+        # accuracy = mean of binary predictions
+        acc = np.mean((preds == y_test))
+        accs.append(acc)
+    return accs
+
+
+#%%
+missing = [25, 28, 31]
+participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing]
+
+ # small plots for individual participants and one bottom plot for a summary
+fig, axs, ax_bottom = utils.make_fig(n_axs=len(participants), n_bottom=1)
 
 # -------------------- read data ------------------------------------------------
 # loop through each participants number from 01 to 35
-for participant in [str(i).zfill(2) for i in
-                    range(34, 36)]:  # (6, 7)]: # for testing purposes we might use only 1 participant, so 2 instead of 36
 
-    if participant in ('25', '28', '31'):  # these are missing
+df_all = pd.DataFrame()  # save results of the calculations in a dataframe
+
+for p, participant in enumerate(participants):  # (6, 7)]: # for testing purposes we might use only 1 participant, so 2 instead of 36
+
+    if participant in ():  # these are missing
         continue
 
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
@@ -103,46 +144,58 @@ for participant in [str(i).zfill(2) for i in
     # todo: Does the char to num even make a difference?
 
     # -------------------- loop through each timepoint to train and test the model---------
-    epochs = epochs.get_data()
+    epochs.resample(100, n_jobs=-1, verbose='WARNING')  # for now resample to 100 to speed up computation
+    data_x = epochs.get_data()
 
-    # shape (31, 306, 1501)
+    if len(data_x)<5: continue  # some participants have very few usable epochs
 
-    #model = LogisticRegression()
-    #pipe = make_pipeline(StandardScaler(), LogisticRegression())
+    df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
+
+    # could also use RandomForest, as it's more robust, should always work out of the box
+    # C parameter is important to set regularization, might overregularize else
+    clf = LogisticRegression(C=10000, max_iter=1000)
     pipe = Pipeline(steps=[('scaler', StandardScaler()),
-                    ('classifier', LogisticRegression(max_iter=1000))])
-    accuracy_number = []
+                    ('classifier', clf)])
+    # calculate all the timepoints in parallel massively speeds up calculation
+    n_splits = 5
+    tqdm_loop = tqdm(range(len(epochs.times)), total=len(epochs.times), desc='calculating timepoints')
+    res = Parallel(-1)(delayed(run_cv)(pipe, data_x[:, :, t],
+                                       gif_pos, n_splits=n_splits) for t in tqdm_loop)
 
-    n_timepoints = epochs.shape[2]
-    for t in range(n_timepoints):
-        data_x_t = epochs[:, :, t]
-        # todo: find right way to normalize the input data
-        # todo: maybe try MinMaxScaler from sklearn
-        data_x_t = normalize(data_x_t)
-        # initialize cross validator
-        cv = StratifiedKFold(n_splits=5)
-
-        accs = []
-        # Loop over each fold
-        for train_idx, test_idx in cv.split(data_x_t, gif_pos):
-            x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
-            y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
+    # save result of the folds in a dataframe.
+    # the unravelling of the res object can be a bit confusion.
+    # res is a list, each entry has 5 accuracy values, for each fold one.
+    # we need to now make sure that in the dataframe each row has one
+    # accuracy value and it's assigned timepoint, and also an indicator of the
+    # fold number
+    df_subj = pd.DataFrame({'participant': participant,
+                            'timepoint': np.repeat(epochs.times, n_splits),
+                            'accuracy': np.ravel(res),
+                            'split': list(range(n_splits))*len(res)
+                            })
 
 
+    # append to dataframe holding all data
+    df_all = pd.concat([df_all, df_subj])
 
-            pipe.fit(x_train, y_train)
-            
-            #model = StandardScaler().fit(x_train, y_train)
+    # first plot this participant into the small axis
+    ax = axs[p]  # select axis of this participant
+    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
+    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
+    ax.set_title(f'{participant=}')
+    # then plot a summary of all participant into the big plot
+    ax_bottom.clear()  # clear axis from previous line
+    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
+    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
+    plt.pause(0.1)  # necessary for plotting to update
 
-            preds = pipe.predict(x_test)
-            #preds = model.predict(x_test)
+    # print('one participant over')
+    # print(f'highest number: {np.max(accuracy_number)}')
+    # print(f'lowest number: {np.min(accuracy_number)}')
+    # print(f'average number: {np.mean(accuracy_number)}')
+    # print('hi')  # hello!
 
-            acc = (preds == y_test)
-
-            accs.append(acc)
-        accuracy_number += [np.count_nonzero(accs) / len(accs)]
-    
-        # kf = KFold(n_splits=5, shuffle=True, random_state=99)
+    # kf = KFold(n_splits=5, shuffle=True, random_state=99)
 
         # split data into training and testing sets
         #x_train, x_test, y_train, y_test = train_test_split(data_x_t, gif_pos, test_size=0.2, random_state=99)
@@ -163,11 +216,7 @@ for participant in [str(i).zfill(2) for i in
         #print("Accuracy: {:.2f}%".format(accuracy * 100))
         #accs += [accuracy]
 
-    print('one participant over')
-    print(f'highest number: {np.max(accuracy_number)}')
-    print(f'lowest number: {np.min(accuracy_number)}')
-    print(f'average number: {np.mean(accuracy_number)}')
-    print('hi')
+
 
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")

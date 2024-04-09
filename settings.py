@@ -56,4 +56,3 @@ for foldername in {'cachedir', 'datadir'}:
         warnings.warn(f'"{foldername}" is not defined for current user (see settings.py)')
     elif not os.path.exists(folder):
         warnings.warn(f'"{foldername}": {folder} is defined but does not exist (yet) on current machine.')
-
