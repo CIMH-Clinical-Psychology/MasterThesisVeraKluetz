@@ -15,7 +15,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 import seaborn as sns
+from joblib import Memory
 
+mem = Memory(settings.cachedir)
+
+@mem.cache
 def load_exp_data(subj):
     """
     load experiment data from psychopy csv log file
@@ -45,6 +49,8 @@ def load_exp_data(subj):
            'gif_shown_duration'             seconds the GIF was shown (roughly)
 
     """
+    if isinstance(subj, str) and subj.isdigit():
+        subj = int(subj)
     assert isinstance(subj, int)
     subj_dir = settings.datadir + f'/ERP-{subj:02d}'
 

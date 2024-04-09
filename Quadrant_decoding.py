@@ -50,11 +50,6 @@ def read_epoch_cached_fif(full_filename):
     return epochs
 
 
-@mem.cache
-def load_exp_data_cached(participant):
-    df_subj = utils.load_exp_data(int(participant))
-    return df_subj
-
 def run_cv(clf, data_x_t, gif_pos, n_splits=5):
     """outsourced crossvalidation function to run on a single timepoint,
     this way the function can be parallelized
@@ -134,7 +129,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
 
     # read the "solution"/target, in which quadrant it was shown
     try:
-        df_subj = load_exp_data_cached(participant)
+        df_subj = utils.load_exp_data(participant)
     except:
         print(f"Quadrants: There is no quadrant information for participant number {participant}. \n "
               f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
@@ -173,7 +168,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
 
     # could also use RandomForest, as it's more robust, should always work out of the box
     # C parameter is important to set regularization, might overregularize else
-    clf = LogisticRegression(C=10000, max_iter=1000)
+    clf = LogisticRegression(C=10, max_iter=1000)
     pipe = Pipeline(steps=[('scaler', StandardScaler()),
                     ('classifier', clf)])
     # calculate all the timepoints in parallel massively speeds up calculation
@@ -207,7 +202,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     ax_bottom.clear()  # clear axis from previous line
     sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
     ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
-    ax_bottom.set_title(f'Mean of {len(df_all.participants.unique())} participants')
+    ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
     plt.pause(0.1)  # necessary for plotting to update
 
     # print('one participant over')
