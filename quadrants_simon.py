@@ -85,4 +85,5 @@ for i, participant in enumerate(tqdm(participants)):
     sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
     ax_bottom.hlines(0.25, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
+    utils.normalize_lims(axs)
     plt.pause(0.1)  # necessary for plotting to update

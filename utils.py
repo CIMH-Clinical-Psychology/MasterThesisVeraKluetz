@@ -188,6 +188,27 @@ def make_fig(n_axs, n_bottom=2, no_ticks=False, suptitle='',
         sns.despine(fig)
     return fig, axs, *axs_bottom
 
+def normalize_lims(axs, which='both'):
+    """for all axes in axs: set axis limits to min/max of all other axs
+    this way all axes have same xlim/ylim
+
+    Parameters
+    ----------
+    axs : list
+        list of axes to normalize.
+    which : string, optional
+        Which axis to normalize. Can be 'x', 'y', 'xy' oder 'both'.
+
+    """
+    if which=='both':
+        which='xy'
+    for w in which:
+        ylims = [getattr(ax, f'get_{w}lim')() for ax in axs]
+        ymin = min([x[0] for x in ylims])
+        ymax = max([x[1] for x in ylims])
+        for ax in axs:
+            getattr(ax, f'set_{w}lim')([ymin, ymax])
+
 csv_file = '/home/simon/Nextcloud/ZI/2023.05 EMO-REACT-prestudy/data/40_EMO_REACT_prestudy_2023-09-20_20h57.56.068.csv'
 
 if __name__=='__main__':
