@@ -2,6 +2,7 @@ nur 280 kanäle in Auswertung statt 360... ist eyetracking Kanal noch drin?
 Ist eyetracking Kanal Teil von picks=meg?
 
 ca 8 Minuten pro Participant caching first time, 4h 40 min gesamte Datei with fif and csv saving
+9h für MEG_preprocessing 4s epoch
 
 decide which environments to use (sckit learn pipelines?)- ask Alpay 
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
