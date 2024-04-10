@@ -26,6 +26,10 @@ Please also refer to the documentation for alternative solver options:
 
 ## Fragen:
 
+## new headline:
+ our goal is to develop a method, so in which steps to build and train a classifier so that it can decode emotions.
+Our goal is to investigate emotional memory replay without having to stick electrodes into a human's head.
+
 
 
 
