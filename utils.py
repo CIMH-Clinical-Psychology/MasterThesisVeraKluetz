@@ -299,7 +299,7 @@ def extract_windows(signal, sfreq, winsize, stepsize=None, axis=-1):
                      If None, defaults to 1
     :param axis:     on which axis to extract the windows
     """ 
-    if stepsize is None: stepsize = 1
+    if stepsize is None: stepsize = 1/sfreq
     stepsize *= sfreq  # convert to sample space
     winsize *= sfreq  # convert to sample space
     assert signal.shape[axis]>=winsize, 'signal is shorter than window size'
