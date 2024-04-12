@@ -4,9 +4,7 @@ Ist eyetracking Kanal Teil von picks=meg?
 ca 8 Minuten pro Participant caching first time, 4h 40 min gesamte Datei with fif and csv saving
 9h für MEG_preprocessing 4s epoch
 
-decide which environments to use (sckit learn pipelines?)- ask Alpay 
 kinit alle 48 h auf Linux ausführen, um Anmeldung neu zu reaktivieren und dadurch Zugriff auf die shared files/network zu behalten
-PUG, Bahn 240€ Hin- und Rückfahrt Mi bis So, 60-70€ p.P. pro Tag (sehr günstig für da), 110€ Konferenz Gebühr
 
 in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 
