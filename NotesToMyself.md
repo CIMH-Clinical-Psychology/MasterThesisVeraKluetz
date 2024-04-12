@@ -11,8 +11,6 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 ## To-Dos:
 
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
-
-- zuerst: gif onset als eventID nehmen, dann mit ML dekodieren in welchem quadranten das gif gezeigt wurde (sanity check) (ohne EOG und bei ICA 1. Komponente (auch EOG) rausfiltern). Dafür eine Funktion schreiben, die mir für jede Probandennummer (Input) eine Liste aller Gifs rausgibt und in welchem Quadranten das Gif gezeigt wurde (Lösung)
     
 - später: als Trigger gif offset nehmen, tmin = -2 sek (oder je nachdem wie die durchschnittliche/max Länge ist) tmax = 0
 
