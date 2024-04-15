@@ -1,5 +1,4 @@
 nur 280 kanäle in Auswertung statt 360... ist eyetracking Kanal noch drin?
-Ist eyetracking Kanal Teil von picks=meg?
 
 ca 8 Minuten pro Participant caching first time, 4h 40 min gesamte Datei with fif and csv saving
 9h für MEG_preprocessing 4s epoch
@@ -16,14 +15,8 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 
 
 ## Fragen:
-in welchem Scenario sollten sie leer sein? Wir haben doch davor schon die missing aussortiert
-
-missing = [25, 28, 31]
-participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing]
-for p, participant in enumerate(participants):  # (6, 7)]: # for testing purposes we might use only 1 participant, so 2 instead of 36
-
-    if participant in ():  # these are missing
-        continue
+plot_epochs_per_participant
+barplot mit seabron, gap oder width oder natural_... nicht sinstellbar, warum?
 
 
 
