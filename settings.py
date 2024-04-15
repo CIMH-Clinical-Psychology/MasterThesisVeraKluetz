@@ -32,7 +32,7 @@ if username == 'vera.kluetz' and host=='zilxap29':  # klipscalc host
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
     # Use the 'TkAgg' backend for interactive plotting
-    plt.switch_backend('TkAgg')
+    #plt.switch_backend('TkAgg')
 
 elif username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
     cachedir = f'{home}/Desktop/joblib/'

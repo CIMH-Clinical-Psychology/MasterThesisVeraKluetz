@@ -24,6 +24,21 @@ os.nice(1)
 #set folderpath, where the resulting epochs should be stored
 epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 #(f"/home/vera.kluetz/epochs/")
+# set tmin and tmax for epoch lengths
+tmin, tmax = -2.5, 1
+
+# set event IDs
+event_id = {'trigger_preimage': 10,
+            'trigger_gif_onset': 20,
+            'trigger_gif_offset': 30,
+            'trigger_fixation': 99,
+            'trigger_valence_start': 101,
+            'trigger_arousal_start': 102,
+            'trigger_flanker_start': 104}
+
+# select events with a certain trigger
+event_id_selection = event_id['trigger_preimage']
+
 
 # -------------------- initial setup and function definition -----------------
 
@@ -145,24 +160,10 @@ for participant in par_numbers:
     # -------------------- find events ---------------------------------------
 
     events = mne.find_events(raw, stim_channel='STI101', min_duration=3 / raw.info['sfreq'])
-
-    # set event IDs
-    event_id = {'trigger_preimage': 10,
-                'trigger_gif_onset': 20,
-                'trigger_gif_offset': 30,
-                'trigger_fixation': 99,
-                'trigger_valence_start': 101,
-                'trigger_arousal_start': 102,
-                'trigger_flanker_start': 104}
-
-    # only select events with a certain trigger
-    event_id_selection = event_id['trigger_gif_onset']
-
     assert len(events)==1440, 'sanity check failed'
 
     # -------------------- create epochs -------------------------------------
 
-    tmin, tmax = -0.5, 1
     # creating epochs is instantaneous, so does not need to be cached :)
     # using `preload` prevents having to call "load_data" :)
     # the events=events needs all event markers, and with the event_id you
