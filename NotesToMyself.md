@@ -31,7 +31,7 @@ Our goal is to investigate emotional memory replay without having to stick elect
 use Logistic Regression for everything:
 1. only EOG data: preprocessing? Yes, some steps needed
 2. Meg Data without ICA EOG filter, without EOG data: create data that is not ICA filtered, then let it run with nice plot and resampling
-3. MEG Data with ICA EOG filter, without EOG data: make a nicer plot, let it run without resampling
+3. MEG Data with ICA EOG filter, without EOG data: make a nicer plot, let it run without resampling; also let it run with random forest for comparison
 
 Do everything with data that has been less preprocessed??? Kinda raw data that only has had: high pass filtering and bad channel interpolation (read up on Simon's paper)
 
