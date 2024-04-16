@@ -18,6 +18,8 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 plot_epochs_per_participant
 barplot mit seabron, gap oder width oder natural_... nicht einstellbar, warum?
 
+random forest: Wleche Parameter noch zusätzlich einstellen?
+
 
 
 ## new headline:
@@ -34,6 +36,13 @@ use Logistic Regression for everything:
 3. MEG Data with ICA EOG filter, without EOG data: make a nicer plot, let it run without resampling; also let it run with random forest for comparison
 
 Do everything with data that has been less preprocessed??? Kinda raw data that only has had: high pass filtering and bad channel interpolation (read up on Simon's paper)
+
+
+-------------------------------
+plot epochs per participant vom Abstand und den Farben nicer machen,  für epochs die tatsächlich verwendet werden
+
+------------------------------
+
 
 
 
