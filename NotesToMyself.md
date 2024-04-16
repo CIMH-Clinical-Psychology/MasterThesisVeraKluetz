@@ -22,10 +22,11 @@ random forest: Wleche Parameter noch zusätzlich einstellen?
 
 
 
-## new headline:
+## discussion / thesis points:
  our goal is to develop a method, so in which steps to build and train a classifier so that it can decode emotions.
 Our goal is to investigate emotional memory replay without having to stick electrodes into a human's head.
 
+we see that there is a 40% classification ability based on eyemovements, even after removing eog channel and performing ICA eog component rejection. Therefore, we have to make sure, that the emotion classifier in the end does not just decode corresponding eye movement. Do e.g. negative emotions create another gaze pattern than positive emotions?
 
 
 
