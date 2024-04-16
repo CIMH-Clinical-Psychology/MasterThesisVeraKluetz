@@ -16,7 +16,7 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 
 ## Fragen:
 plot_epochs_per_participant
-barplot mit seabron, gap oder width oder natural_... nicht sinstellbar, warum?
+barplot mit seabron, gap oder width oder natural_... nicht einstellbar, warum?
 
 
 
@@ -26,6 +26,13 @@ Our goal is to investigate emotional memory replay without having to stick elect
 
 
 
+
+## Plan:
+1. only EOG data: preprocessing? Yes, some steps needed
+2. Meg Data without ICA EOG filter, without EOG data: create data that is not ICA filtered, then let it run with nice plot and resampling
+3. MEG Data with ICA EOG filter, without EOG data: make a nicer plot, let it run without resampling
+
+Do everything with data that has been less preprocessed??? Kinda raw data that only has had: high pass filtering and bad channel interpolation (read up on Simon's paper)
 
 
 
