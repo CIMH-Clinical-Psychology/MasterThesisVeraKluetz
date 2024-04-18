@@ -102,7 +102,7 @@ participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing]
 # small plots for individual participants and one bottom plot for a summary
 fig, axs, ax_bottom = utils.make_fig(n_axs=len(participants),
                                      n_bottom=[0, 1],
-                                     figsize=[12, 12])
+                                     figsize=[14, 14])
 
 # -------------------- read data ------------------------------------------------
 # loop through each participants number from 01 to 35
@@ -114,7 +114,9 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}'
+    #filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}'
+    #filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_noIcaEogRejection'
+    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_EOG-only'
     full_filename_csv = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.csv")
     full_filename_fif = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
 
@@ -161,11 +163,11 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     # todo: Does the char to num even make a difference?
 
     # -------------------- loop through each timepoint to train and test the model---------
-    epochs.resample(100, n_jobs=-1, verbose='WARNING')  # for now resample to 100 to speed up computation
+    #epochs.resample(100, n_jobs=-1, verbose='WARNING')  # for now resample to 100 to speed up computation
     data_x = epochs.get_data()
 
     if len(data_x)<20:
-        axs[p].text(0.5, 0.5, f'{participant=} \n {len(data_x)} epochs, skip')
+        axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
@@ -190,6 +192,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
                                     gif_pos, n_splits=n_splits) for t in tqdm_loop)
     except:
         print(f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
+        continue
 
     # save result of the folds in a dataframe.
     # the unravelling of the res object can be a bit confusion.
@@ -248,7 +251,9 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
         #accs += [accuracy]
 
 
-plot_filename = os.path.join(plot_folderpath, f"quadrant_deconding_{event_id_selection=}_{tmin=}_{tmax=}.png")
+#plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}.png")
+#plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_noIcaEogRejection.png")
+plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_EOG-only.png")
 fig.savefig(plot_filename)
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")

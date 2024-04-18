@@ -6,7 +6,7 @@ Created on Tue Apr  9 11:51:33 2024
 @author: simon.kern
 """
 import os
-import ospath
+#import ospath
 import settings
 import mne
 from tqdm import tqdm
