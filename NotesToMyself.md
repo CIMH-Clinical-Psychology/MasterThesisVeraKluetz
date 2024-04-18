@@ -29,6 +29,10 @@ Our goal is to investigate emotional memory replay without having to stick elect
 we see that there is a 40% classification ability based on eyemovements, even after removing eog channel and performing ICA eog component rejection. Therefore, we have to make sure, that the emotion classifier in the end does not just decode corresponding eye movement. Do e.g. negative emotions create another gaze pattern than positive emotions?
 
 
+idea: put GIFs in Ai video to text model and get internal representation (Samu showed me a demo on huggingface)
+https://colab.research.google.com/github/openai/clip/blob/master/notebooks/Interacting_with_CLIP.ipynb
+Then use MEG data and internal representation to find/get features or correlations etc
+
 
 ## Plan:
 use Logistic Regression for everything:
