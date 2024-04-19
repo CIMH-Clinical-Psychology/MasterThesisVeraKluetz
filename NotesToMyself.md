@@ -20,6 +20,8 @@ barplot mit seabron, gap oder width oder natural_... nicht einstellbar, warum?
 
 random forest: Wleche Parameter noch zusätzlich einstellen?
 
+Preprocessing anschauen/vergleichen ob richtig durchgeführt
+
 
 
 ## discussion / thesis points:
