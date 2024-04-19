@@ -9,6 +9,10 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 
 ## To-Dos:
 
+- epochs per participant schöner machen und berechnen
+- wenig preprocessed data accuracy vergleichen mit normaler
+- BCI post anschauen
+- von klipscalc migrieren
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
     
 - später: als Trigger gif offset nehmen, tmin = -2 sek (oder je nachdem wie die durchschnittliche/max Länge ist) tmax = 0
