@@ -10,9 +10,9 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 ## To-Dos:
 
 - epochs per participant schöner machen und berechnen
-- wenig preprocessed data accuracy vergleichen mit normaler
-- BCI post anschauen
-- von klipscalc migrieren
+  libGL error: MESA-LOADER: failed to open swrast: /usr/lib/dri/swrast_dri.so: cannot open shared object file: No such file or directory (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
+libGL error: failed to load driver: swrast
+
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
     
 - später: als Trigger gif offset nehmen, tmin = -2 sek (oder je nachdem wie die durchschnittliche/max Länge ist) tmax = 0
@@ -25,8 +25,11 @@ barplot mit seabron, gap oder width oder natural_... nicht einstellbar, warum?
 random forest: Wleche Parameter noch zusätzlich einstellen?
 
 Preprocessing anschauen/vergleichen ob richtig durchgeführt
+wenig preprocessed data accuracy vergleichen mit normaler
 
+- BCI post anschauen
 
+- - von klipscalc migrieren
 
 ## discussion / thesis points:
  our goal is to develop a method, so in which steps to build and train a classifier so that it can decode emotions.
