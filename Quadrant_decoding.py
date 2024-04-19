@@ -32,7 +32,7 @@ event_id_selection = 10
 tmin = -2.5
 tmax = 1
 # either choose "RandomForest" or "LogisticRegression" as classifier
-classifier = "RandomForest"
+classifier = "LogisticRegression"
 
 # -------------------- cached functions --------------------------------------
 # measure code execution
@@ -116,7 +116,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
 
     #filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}'
     #filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_noIcaEogRejection'
-    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_EOG-only'
+    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_minimalPreprocessing'
     full_filename_csv = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.csv")
     full_filename_fif = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
 
@@ -253,7 +253,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
 
 #plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}.png")
 #plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_noIcaEogRejection.png")
-plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_EOG-only.png")
+plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_minimalPreprocessing.png")
 fig.savefig(plot_filename)
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")

@@ -30,7 +30,7 @@ def read_epoch_cached_fif(full_filename):
 
 
 missing = [25, 28, 31]
-participants = [str(i).zfill(2) for i in range(1, 5) if not i in missing] #36
+participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing] #36
 
  # small plots for individual participants and one bottom plot for a summary
 #fig, axs, ax_bottom = utils.make_fig(n_axs=len(participants), n_bottom=1)
@@ -61,7 +61,7 @@ for participant in participants:  # (6, 7)]: # for testing purposes we might use
     list_num_epochs.append(len(epochs))
 
 #sns.scatterplot(x=participants, y=list_num_epochs)
-myplot = sns.barplot(x=participants, y=list_num_epochs, native_scale=True)
+myplot = sns.barplot(x=participants, y=list_num_epochs)
 plt.show()
 
 plot_filename = os.path.join(plot_folderpath, f"Epochs_per_pariticpant_{event_id_selection=}_{tmin=}_{tmax=}.png")
