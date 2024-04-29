@@ -21,9 +21,7 @@ os.nice(1)
 
 # -------------------- user specifics ----------------------------------------
 
-#set folderpath, where the resulting epochs should be stored
-epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
-#(f"/home/vera.kluetz/epochs/")
+
 # set tmin and tmax for epoch lengths
 tmin, tmax = -2.5, 1
 
@@ -215,12 +213,12 @@ for participant in par_numbers:
     print('###  saving epochs')
     filename_epoch = f'{participant=}_{event_id_selection=}_{tmin=}_{tmax=}'
     filename_epoch = valid_filename(filename_epoch)
-    epoch_file_path = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
+    epoch_file_path = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
     epochs_meg.save(epoch_file_path, fmt='double', overwrite=True)
 
     df = epochs_meg.to_data_frame(index=["condition", "epoch", "time"])
     df.sort_index(inplace=True)
-    epoch_file_path_csv = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.csv")
+    epoch_file_path_csv = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.csv")
     df.to_csv(epoch_file_path_csv) #todo: make it overwritable
 
 

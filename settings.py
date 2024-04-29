@@ -27,29 +27,35 @@ home = os.path.expanduser('~')
 
 cachedir = None  # folder with fast i/o for caching files via joblib
 datadir = None   # folder with the MEG data (i.e. FIF files)
+epochs_folderpath = None  # folder where the resulting epochs should be stored
 
 if username == 'vera.kluetz' and host=='zilxap29':  # klipscalc host
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
+    epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
     # Use the 'TkAgg' backend for interactive plotting
     #plt.switch_backend('TkAgg')
 
 elif username == 'vera.kluetz' and host=='zislrds0035.zi.local': # simons VM
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
+    epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 
-elif username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
+elif username == 'simon.kern' and host == 'zislrds0035.zi.local':  # simons VM
     cachedir = f'{home}/Desktop/joblib/'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
+    epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 
-elif username == 'simon' and host=='kubuntu':  # simons home computer
+elif username == 'simon' and host == 'kubuntu':  # simons home computer
     cachedir = f'{home}/Desktop/joblib/'
     datadir = None  # I don't have the data on my local computer
+    epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 
 # ENTER YOUR DIRS USING THE FOLLOWING TEMPLATE
 # elif username == 'your.username (lowercase)' and host=='yourhostmachine':
 #     datadir = '/hobbes/Klips/EMO_REACT-prestudy/participant_data/'
 #     cachedir = f'{home}/Desktop/joblib-cache/'
+#     epochs_folderpath = f'/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/'
 
 else:
     raise Exception(f'No profile found for {username} @ {host}. Please enter in settings.py')
