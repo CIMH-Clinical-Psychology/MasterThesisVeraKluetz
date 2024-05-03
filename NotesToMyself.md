@@ -9,27 +9,17 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
 
 ## To-Dos:
 
-- epochs per participant schöner machen und berechnen
-  libGL error: MESA-LOADER: failed to open swrast: /usr/lib/dri/swrast_dri.so: cannot open shared object file: No such file or directory (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
-libGL error: failed to load driver: swrast
-
 - Einen Boxplot mit seaborn oder matplotlib ertellen, was pro Proband die durchschnittliche gif länge zeigt. Auch maxima und minima anzeigen. Auch schauen, ob Info, ob ein Knopf bei emotionaler Reaktion gedrückt wurde oder nicht, ob man die dann besser dekodieren kann
     
 - später: als Trigger gif offset nehmen, tmin = -2 sek (oder je nachdem wie die durchschnittliche/max Länge ist) tmax = 0
 
 
 ## Fragen:
-plot_epochs_per_participant
-barplot mit seabron, gap oder width oder natural_... nicht einstellbar, warum?
-
 random forest: Wleche Parameter noch zusätzlich einstellen?
-
-Preprocessing anschauen/vergleichen ob richtig durchgeführt
-wenig preprocessed data accuracy vergleichen mit normaler
 
 - BCI post anschauen
 
-- - von klipscalc migrieren
+
 
 ## discussion / thesis points:
  our goal is to develop a method, so in which steps to build and train a classifier so that it can decode emotions.
@@ -44,18 +34,6 @@ Then use MEG data and internal representation to find/get features or correlatio
 
 
 ## Plan:
-use Logistic Regression for everything:
-1. only EOG data: preprocessing? Yes, some steps needed
-2. Meg Data without ICA EOG filter, without EOG data: create data that is not ICA filtered, then let it run with nice plot and resampling
-3. MEG Data with ICA EOG filter, without EOG data: make a nicer plot, let it run without resampling; also let it run with random forest for comparison
-
-Do everything with data that has been less preprocessed??? Kinda raw data that only has had: high pass filtering and bad channel interpolation (read up on Simon's paper)
-
-
--------------------------------
-plot epochs per participant vom Abstand und den Farben nicer machen,  für epochs die tatsächlich verwendet werden
-
-------------------------------
 
 
 
