@@ -30,7 +30,8 @@ mem = Memory(settings.cachedir if settings.caching else None)  # only enable cac
 def read_raw_filtered_cached(fif_filepath, highpass, lowpass, notch):
     raw = mne.io.read_raw_fif(fif_filepath, preload=True, verbose='INFO')
     raw.filter(highpass, lowpass, n_jobs=-1)
-    raw.notch_filter(notch)
+    if notch.all() != None:
+        raw.notch_filter(notch)
     return raw
 
 
@@ -53,9 +54,13 @@ def fit_apply_ica_cached(mne_obj, mne_obj_meg, ica_def, ica_ecg, ica_eog):
     # epochs :-/ we might need to filter the raw object and then create epochs
     raw_ica = mne_obj_meg.copy().filter(1, None, n_jobs=-1)  # should be quite fast
     ica.fit(raw_ica, picks='meg')
-    idx_ecg, scores_ecg = ica.find_bads_ecg(mne_obj if ica_ecg == True else None) #, ch_name='BIO001')
-    idx_eog, scores_eog = ica.find_bads_eog(mne_obj if ica_eog == True else None)
-    remove_components = idx_ecg + idx_eog #Todo: See if this works with None objects
+    remove_components = []
+    if ica_ecg == True:
+        idx_ecg, scores_ecg = ica.find_bads_ecg(mne_obj) #, ch_name='BIO001')
+        remove_components.extend(idx_ecg)
+    if ica_eog == True:
+        idx_eog, scores_eog = ica.find_bads_eog(mne_obj)
+        remove_components.extend(idx_eog)
 
     print('removing the following components: {remove_components}')
     # apply ICA to the raw that only contains MEG data
@@ -108,12 +113,6 @@ def autoreject_fit_cached(epochs):
 
 
 
-
-
-
-
-
-
 def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lowpass=50, notch = np.arange(50, 251, 50), picks = 'meg', fileending=None, autoreject = True, ica_ecg = True, ica_eog = True):
     # creates a list of all participant numbers from 01 to 35 so that we can loop through them
     par_numbers = [str(i).zfill(2) for i in
@@ -130,7 +129,6 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
         print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
         fif_filepath = settings.datadir + f"ERP-{participant}/ERP{participant}_initial_tsss_mc.fif"
-
         # read raw data
         try:
             print('###  loading and filtering data')
@@ -138,7 +136,7 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
             raw = read_raw_filtered_cached(fif_filepath, highpass, lowpass, notch)
         except:
             warnings.warn(
-                f"There have been problems with reading the raw data in the fif file of Participant number {participant}. Proceeding with next participant.")
+                f"There have been problems with reading or filtering the raw data in the fif file of Participant number {participant}. Proceeding with next participant.")
             continue
 
 
@@ -173,32 +171,33 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
         # epochs.plot(show=False)
 
         # reject bad epochs automatically
-        ar = autoreject_fit_cached(epochs_meg if autoreject else None)
-
-        # call to ar.transform should be relatively fast, no caching needed
-        # there seems to be some bug that you can only enter channel data
-        # of MAG and GRAD, weird! I think this is a bug with autoreject.
-        epochs_meg = ar.transform(epochs_meg if autoreject else None)
+        if autoreject== True:
+            ar = autoreject_fit_cached(epochs_meg)
+            # call to ar.transform should be relatively fast, no caching needed
+            # there seems to be some bug that you can only enter channel data
+            # of MAG and GRAD, weird! I think this is a bug with autoreject.
+            epochs_meg = ar.transform(epochs_meg)
 
         # create downsampled epochs
         # sampling_rate = 200
         # epochs_resampled = epochs.resample(sampling_rate, npad="auto")
 
         # -------------------- independent component analysis ---------------------
-        ica_method = 'fastica'
-        n_components = 40  # todo: try with 50 maybe?
-        random_state = 99
-        # store definition in dictionary
-        ica_def = dict(n_components=n_components, method=ica_method, random_state=random_state)
-        epochs_meg, ica = fit_apply_ica_cached((epochs_orig, epochs_meg, ica_def, ica_ecg, ica_eog) if (ica_ecg or ica_eog) == True else None)
+        if (ica_ecg or ica_eog) == True:
+            ica_method = 'fastica'
+            n_components = 40  # todo: try with 50 maybe?
+            random_state = 99
+            # store definition in dictionary
+            ica_def = dict(n_components=n_components, method=ica_method, random_state=random_state)
+            epochs_meg, ica = fit_apply_ica_cached(epochs_orig, epochs_meg, ica_def, ica_ecg, ica_eog)
 
-        # check ICA solution
-        explained_var_ratio = ica.get_explained_variance_ratio(epochs_meg if (ica_ecg or ica_eog) == True else None)
-        for channel_type, ratio in explained_var_ratio.items():
-            print(
-                f'Fraction of {channel_type} variance explained by all components: '
-                f'{ratio}'
-            )
+            # check ICA solution
+            explained_var_ratio = ica.get_explained_variance_ratio(epochs_meg)
+            for channel_type, ratio in explained_var_ratio.items():
+                print(
+                    f'Fraction of {channel_type} variance explained by all components: '
+                    f'{ratio}'
+                )
 
         # --------------------- save epochs ---------------------------------------
         print('###  saving epochs')

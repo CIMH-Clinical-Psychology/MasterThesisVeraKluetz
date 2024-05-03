@@ -54,44 +54,44 @@ functions.loop_through_participants(tmin,
                                     ica_ecg = True,
                                     ica_eog = True)
 
-# take meg data and do not filter out eog components via ica
-functions.loop_through_participants(tmin,
-                                    tmax,
-                                    event_id_selection,
-                                    highpass=0.1,
-                                    lowpass=50,
-                                    notch=np.arange(50, 251, 50),
-                                    picks='meg',
-                                    fileending = 'noIcaEogRejection',
-                                    autoreject = True,
-                                    ica_ecg = True,
-                                    ica_eog = False)
-
+## take meg data and do not filter out eog components via ica
+#functions.loop_through_participants(tmin,
+#                                    tmax,
+#                                    event_id_selection,
+#                                    highpass=0.1,
+#                                    lowpass=50,
+#                                    notch=np.arange(50, 251, 50),
+#                                    picks='meg',
+#                                    fileending = 'noIcaEogRejection',
+#                                    autoreject = True,
+#                                    ica_ecg = True,
+#                                    ica_eog = False)
+#
 # take eog data only
-functions.loop_through_participants(tmin,
-                                    tmax,
-                                    event_id_selection,
-                                    highpass=0.1,
-                                    lowpass=50,
-                                    notch=np.arange(50, 251, 50),
-                                    picks='eog',
-                                    fileending = 'EOG-only',
-                                    autoreject = False,
-                                    ica_ecg = False,
-                                    ica_eog = False)
-
+#functions.loop_through_participants(tmin,
+#                                    tmax,
+#                                    event_id_selection,
+#                                    highpass=0.1,
+#                                    lowpass=50,
+#                                    notch=np.arange(50, 251, 50),
+#                                    picks='eog',
+#                                    fileending = 'EOG-only',
+#                                    autoreject = False,
+#                                    ica_ecg = False,
+#                                    ica_eog = False)
+#
 # take meg data and process as minimally as possible
-functions.loop_through_participants(tmin,
-                                    tmax,
-                                    event_id_selection,
-                                    highpass=0.1,
-                                    lowpass=None,
-                                    notch=None,
-                                    picks='meg',
-                                    fileending = 'minimalPreprocessing',
-                                    autoreject = False,
-                                    ica_ecg = False,
-                                    ica_eog = False)
+#functions.loop_through_participants(tmin,
+#                                    tmax,
+#                                    event_id_selection,
+#                                    highpass=0.1,
+#                                    lowpass=None,
+#                                    notch=None,
+#                                    picks='meg',
+#                                    fileending = 'minimalPreprocessing',
+#                                    autoreject = False,
+#                                    ica_ecg = False,
+#                                    ica_eog = False)
 
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
