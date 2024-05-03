@@ -180,6 +180,8 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
 plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}{fileending}.png")
 fig.savefig(plot_filename)
 
+end_time = time.time()
+print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
 
 if plot_epochs_per_participant:
     plt.figure(figsize=(10,5))
@@ -189,5 +191,4 @@ if plot_epochs_per_participant:
     plt.savefig(plot_filename)
     plt.show()
 
-end_time = time.time()
-print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
+

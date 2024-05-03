@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import warnings
 import seaborn as sns
 from joblib import Memory
+from sklearn import feature_extraction
 
 mem = Memory(settings.cachedir)
 
@@ -208,6 +209,65 @@ def normalize_lims(axs, which='both'):
         ymax = max([x[1] for x in ylims])
         for ax in axs:
             getattr(ax, f'set_{w}lim')([ymin, ymax])
+
+def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
+    """extract 1d signal windows from an ndimensional array
+
+    window_size and step_size are defined in terms of seconds
+    this will extract a so called 'view' to the array, so the memory footprint
+    is the same as the original array as no data is copied. The resulting
+    views are therefore write protected to prevent accidental alteration.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        input array
+    sfreq : int | float
+        sampling frequency.
+    window_size : int | float
+        window size in seconds.
+    step_size : int | float
+        window size in seconds.
+    axis : int, optional
+        axis that is denominating the time. The default is -1.
+    Returns
+    -------
+    windows : np.ndarray
+        array with the extracted windows as the last two dimensions
+
+    """
+
+    win_size_samples = win_size * sfreq
+    step_size_samples = step_size * sfreq
+
+    if np.round(win_size_samples) != (win_size_samples := int(win_size_samples)):
+        rounded_length = win_size_samples / sfreq
+        warnings.warn(f'{win_size=} s cannot accurately be represented with {sfreq=}, using {rounded_length:.3f} s')
+
+    if np.round(step_size_samples) != (step_size_samples := int(step_size_samples)):
+        rounded_length = step_size_samples / sfreq
+        warnings.warn(f'{step_size=} s cannot accurately be represented with {sfreq=}, using {rounded_length:.3f} s')
+
+    patch_shape = np.ones_like(arr.shape)
+    extraction_step = np.ones_like(arr.shape)
+    patch_shape[axis] = win_size_samples
+    extraction_step[axis] = step_size_samples
+
+    assert patch_shape[axis] <= arr.shape[axis], f'requested {win_size_samples=} > {arr.shape[axis]} of {axis=}'
+
+    windows = feature_extraction.image._extract_patches(arr, patch_shape=patch_shape,
+                                                        extraction_step=extraction_step)
+
+    # last but not least get rid of the singular dimensions
+    new_shape = list(windows.shape[:arr.ndim]) + [x for x in windows.shape[arr.ndim:] if x > 1]
+
+    # there are some empty dimension
+    windows = windows.reshape(new_shape)
+    # make read-only to prevent accidental changes in views
+    windows.flags.writeable = False
+    return windows
+
+
 
 csv_file = '/home/simon/Nextcloud/ZI/2023.05 EMO-REACT-prestudy/data/40_EMO_REACT_prestudy_2023-09-20_20h57.56.068.csv'
 

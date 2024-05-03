@@ -263,3 +263,7 @@ def run_cv(clf, data_x_t, gif_pos, n_splits=5):
         acc = np.mean((preds == y_test))
         accs.append(acc)
     return accs
+
+
+
+
