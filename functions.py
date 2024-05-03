@@ -18,6 +18,7 @@ import seaborn as sns
 import time
 import autoreject
 from joblib import Memory
+from sklearn.model_selection import StratifiedKFold
 
 os.nice(1)
 
@@ -69,7 +70,7 @@ def fit_apply_ica_cached(mne_obj, mne_obj_meg, ica_def, ica_ecg, ica_eog):
 
 
 def ignore_warnings():
-    # surpress warning that naming convention is not met
+    """surpress warning that naming convention is not met"""
     warnings.filterwarnings("ignore",
                             message=".*does not conform to MNE naming conventions. All raw files should end with raw.fif, raw_sss.fif, raw_tsss.fif*",
                             category=RuntimeWarning, module="mne")
@@ -114,6 +115,10 @@ def autoreject_fit_cached(epochs):
 
 
 def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lowpass=50, notch = np.arange(50, 251, 50), picks = 'meg', fileending=None, autoreject = True, ica_ecg = True, ica_eog = True):
+    """Loops through all participants, finds stimulus events, creates epochs and saves them. Depending on the input of
+    the function, the data also gets higpass-, lowpass-, and notch-filtered; also ica including eog and ecg rejection
+    can be included as well as autoreject of bad epochs"""
+
     # creates a list of all participant numbers from 01 to 35 so that we can loop through them
     par_numbers = [str(i).zfill(2) for i in
                    range(1, 36)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
@@ -207,7 +212,54 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
         epoch_file_path = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
         epochs_meg.save(epoch_file_path, fmt='double', overwrite=True)
 
-        #df = epochs_meg.to_data_frame(index=["condition", "epoch", "time"])
-        #df.sort_index(inplace=True)
-        #epoch_file_path_csv = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.csv")
-        #df.to_csv(epoch_file_path_csv)  # todo: make it overwritable
+
+
+
+
+
+@mem.cache
+def read_epoch_cached_fif(full_filename):
+    epochs = mne.read_epochs(full_filename)
+    return epochs
+
+
+def run_cv(clf, data_x_t, gif_pos, n_splits=5):
+    """outsourced crossvalidation function to run on a single timepoint,
+    this way the function can be parallelized
+
+    Parameters
+    ----------
+    clf : sklearn.Estimator
+        any object having a .fit and a .predict function (Pipeline, Classifier).
+    data_x_t : np.ndarray
+        numpy array with shape [examples, features].
+    gif_pos : np.ndarray, list
+        list or array of target variables.
+    n_splits : int, optional
+        number of splits. The default is 5.
+
+    Returns
+    -------
+    accs : list
+        list of accuracies, for each fold one.
+    """
+
+    cv = StratifiedKFold(n_splits=n_splits)
+    accs = []
+    # Loop over each fold
+    for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
+        x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
+        y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
+
+        # clf can also be a pipe object
+        clf.fit(x_train, y_train)
+
+        #model = StandardScaler().fit(x_train, y_train)
+
+        preds = clf.predict(x_test)
+        #preds = model.predict(x_test)
+
+        # accuracy = mean of binary predictions
+        acc = np.mean((preds == y_test))
+        accs.append(acc)
+    return accs

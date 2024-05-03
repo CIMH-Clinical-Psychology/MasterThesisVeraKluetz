@@ -7,14 +7,13 @@ from joblib import Parallel, delayed
 import time
 import settings
 import utils
-from sklearn.model_selection import StratifiedKFold
+import functions
+
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import normalize
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-import mne
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -25,75 +24,26 @@ plt.ion()
 
 # -------------------- user specifics ----------------------------------------
 # folderpath, where the epochs are stored
-# take the following parameters from the stored filenames!
 epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
 plot_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Plots/")
+# set if you want a plot to be shown and saved of how many epochs there are per participant
+plot_epochs_per_participant = True
+
+# take the following parameters from the stored filenames!
+
 event_id_selection = 10
 tmin = -2.5
 tmax = 1
+# for the fileending, choose between the following:
+# ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
+fileending = ""
 # either choose "RandomForest" or "LogisticRegression" as classifier
 classifier = "LogisticRegression"
+# ---------------------- end of user specifics --------------------------
 
-# -------------------- cached functions --------------------------------------
+
 # measure code execution
 start_time = time.time()
-
-mem = Memory(settings.cachedir)
-
-
-@mem.cache
-def read_epoch_cached_csv(full_filename):
-    df = pd.read_csv(full_filename)
-    return df
-
-
-@mem.cache
-def read_epoch_cached_fif(full_filename):
-    epochs = mne.read_epochs(full_filename)
-    return epochs
-
-
-def run_cv(clf, data_x_t, gif_pos, n_splits=5):
-    """outsourced crossvalidation function to run on a single timepoint,
-    this way the function can be parallelized
-
-    Parameters
-    ----------
-    clf : sklearn.Estimator
-        any object having a .fit and a .predict function (Pipeline, Classifier).
-    data_x_t : np.ndarray
-        numpy array with shape [examples, features].
-    gif_pos : np.ndarray, list
-        list or array of target variables.
-    n_splits : int, optional
-        number of splits. The default is 5.
-
-    Returns
-    -------
-    accs : list
-        list of accuracies, for each fold one.
-    """
-
-    cv = StratifiedKFold(n_splits=n_splits)
-    accs = []
-    # Loop over each fold
-    for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
-        x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
-        y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
-
-        # clf can also be a pipe object
-        clf.fit(x_train, y_train)
-
-        #model = StandardScaler().fit(x_train, y_train)
-
-        preds = clf.predict(x_test)
-        #preds = model.predict(x_test)
-
-        # accuracy = mean of binary predictions
-        acc = np.mean((preds == y_test))
-        accs.append(acc)
-    return accs
-
 
 #%%
 missing = [25, 28, 31]
@@ -103,6 +53,9 @@ participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing]
 fig, axs, ax_bottom = utils.make_fig(n_axs=len(participants),
                                      n_bottom=[0, 1],
                                      figsize=[14, 14])
+
+# create list to store the amount of epochs per participant
+list_num_epochs = []
 
 # -------------------- read data ------------------------------------------------
 # loop through each participants number from 01 to 35
@@ -114,20 +67,20 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    #filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}'
-    #filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_noIcaEogRejection'
-    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}_minimalPreprocessing'
-    full_filename_csv = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.csv")
+    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}{fileending}'
     full_filename_fif = os.path.join(epochs_folderpath, f"{filename_epoch}-epo.fif")
 
     # read the epochs
     try:
-        epochs = read_epoch_cached_fif(full_filename_fif)
+        epochs = functions.read_epoch_cached_fif(full_filename_fif)
     except:
         print(f"Epochs: There is no epochs file for participant number {participant}. \n "
               f"If you expected the file to exist, please check the parameters given for the filename creation. \n "
               f"Proceeding with next participant.\n")
         continue
+    # count epochs per participant
+    list_num_epochs.append(len(epochs))
+
 
     # read the "solution"/target, in which quadrant it was shown
     try:
@@ -188,7 +141,7 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     n_splits = 5
     tqdm_loop = tqdm(range(len(epochs.times)), total=len(epochs.times), desc='calculating timepoints')
     try:
-        res = Parallel(-1)(delayed(run_cv)(pipe, data_x[:, :, t],
+        res = Parallel(-1)(delayed(functions.run_cv)(pipe, data_x[:, :, t],
                                     gif_pos, n_splits=n_splits) for t in tqdm_loop)
     except:
         print(f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
@@ -223,37 +176,18 @@ for p, participant in enumerate(participants):  # (6, 7)]: # for testing purpose
     fig.tight_layout()
     plt.pause(0.1)  # necessary for plotting to update
 
-    # print('one participant over')
-    # print(f'highest number: {np.max(accuracy_number)}')
-    # print(f'lowest number: {np.min(accuracy_number)}')
-    # print(f'average number: {np.mean(accuracy_number)}')
-    # print('hi')  # hello!
 
-    # kf = KFold(n_splits=5, shuffle=True, random_state=99)
-
-        # split data into training and testing sets
-        #x_train, x_test, y_train, y_test = train_test_split(data_x_t, gif_pos, test_size=0.2, random_state=99)
-#
-        ## standardize features
-        ## converts MEG values to a 0 mean and a standard deviation of 1
-        #scaler = StandardScaler()
-        #x_train = scaler.fit_transform(x_train)
-        #x_test = scaler.transform(x_test)
-#
-        ## train the Logistic Regression model/classifier
-        #model = LogisticRegression()
-        #model.fit(x_train, y_train)
-#
-        ## evaluate the model
-        #y_pred = model.predict(x_test)
-        #accuracy = accuracy_score(y_test, y_pred)
-        #print("Accuracy: {:.2f}%".format(accuracy * 100))
-        #accs += [accuracy]
-
-
-#plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}.png")
-#plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_noIcaEogRejection.png")
-plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}_minimalPreprocessing.png")
+plot_filename = os.path.join(plot_folderpath, f"quadrant_decoding_{classifier}_{event_id_selection=}_{tmin=}_{tmax=}{fileending}.png")
 fig.savefig(plot_filename)
+
+
+if plot_epochs_per_participant:
+    plt.figure(figsize=(10,5))
+    plt.bar(x=participants, height=list_num_epochs, width = 0.7)
+
+    plot_filename = os.path.join(plot_folderpath, f"Epochs_per_participant_{event_id_selection=}_{tmin=}_{tmax=}{fileending}.png")
+    plt.savefig(plot_filename)
+    plt.show()
+
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
