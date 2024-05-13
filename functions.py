@@ -9,16 +9,24 @@ This file contains all functions
 """
 import os
 import settings
-import pandas as pd
 import numpy as np
+import pandas as pd
+from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 import warnings
 import mne
 import seaborn as sns
-import time
 import autoreject
 from joblib import Memory
 from sklearn.model_selection import StratifiedKFold
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from tqdm import tqdm
+import scipy
+
+
 
 os.nice(1)
 
@@ -266,4 +274,129 @@ def run_cv(clf, data_x_t, gif_pos, n_splits=5):
 
 
 
+def plot_epochs_per_participant(participants, list_num_epochs):
+    '''create a 10x5 figure that shows the participant number on the x-axis and the amount of epochs per participant on the y-axis.
+    The plot is saved in the plot folder and displayed immediately'''
+    plt.figure(figsize=(10, 5))
+    plt.bar(x=participants, height=list_num_epochs, width=0.7)
 
+    plot_filename = os.path.join(settings.plot_folderpath,
+                                 f"Epochs_per_participant_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+    plt.savefig(plot_filename)
+    plt.show()
+
+
+def plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all):
+    '''plots a subject into the small axis and then updates the summary of all participants in the lower right plot'''
+    # first plot this participant into the small axis
+    ax = axs[p]  # select axis of this participant
+    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
+    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
+    ax.set_title(f'{participant=}')
+    # then plot a summary of all participant into the big plot
+    ax_bottom.clear()  # clear axis from previous line
+    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
+    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--',
+                     color='gray')  # draw random chance line
+    ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
+    fig.tight_layout()
+    plt.pause(0.1)  # necessary for plotting to update
+
+
+def get_windows_power(windows, sfreq):
+    '''returns a list of lists of e.g. alpha power. Each alhpa power has the shape (epochs x channel)'''
+    windows_power = []
+
+    # loop through windows
+    for i in tqdm(range(windows.shape[2])):
+        # this loop can for sure be paralellized and also should be a function with parameters and not a loop
+        win = windows[:, :, i, :]
+        # convert to frequency domain via rfft (we don't need the imaginary part)
+        w = scipy.fftpack.rfft(win, axis=-1)
+        freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
+        # w.shape = (144, 306, 500)
+        # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
+        power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
+        # e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
+        # now you can use these to calculate brain bands, e.g.
+        alpha = [8, 14]
+        alpha_idx1 = np.argmax(freqs > alpha[0])
+        alpha_idx2 = np.argmax(freqs > alpha[1])
+        alpha_power = power[:, :, alpha_idx1:alpha_idx2].mean(-1)
+        # alpha_power .shape = (144, 306),
+        # for each epoch, for each channel one alpha power value
+        windows_power += [alpha_power]  # add alpha power values of this window to list
+
+    return windows_power
+
+
+
+def decode_features(windows_power, labels, participant):
+    '''
+    performs cross validation with a classifier set in the settings and the StandardScaler
+
+    input:
+    windows_power: list (n = amount of windows per epoch) containing arrays with the shape (epochs x channels)
+    labels: 1D with the target values
+    participant: string with participant number
+
+    returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy, split
+    '''
+    # windows: shape(144, 306, 13, 500)
+    # windows_power: list len 13 containing arrays shape(144, 306)
+
+    # alpha_power .shape = (144, 306),
+    # for each epoch, for each channel one alpha power value
+    #windows_power += [alpha_power]
+
+
+    print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+    print(' Decoding')
+    print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+
+
+    df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
+
+    # could also use RandomForest, as it's more robust, should always work out of the box
+    # C parameter is important to set regularization, might overregularize else
+    if settings.classifier == "LogisticRegression":
+        clf = LogisticRegression(C=10, max_iter=1000, random_state=99)
+    elif settings.classifier == "RandomForest":
+        clf = RandomForestClassifier(n_estimators=100, random_state=99)
+    else:
+        print("No valid classifier was selected")
+        exit()
+
+    pipe = Pipeline(steps=[('scaler', StandardScaler()),
+                           ('classifier', clf)])
+    # calculate all the timepoints in parallel massively speeds up calculation
+    n_splits = 5
+    tqdm_loop = tqdm(range(len(windows_power)), total=len(windows_power), desc='calculating timepoints')
+
+
+    #res=[]
+    #for n_window in range(13):
+    #    accs = functions.run_cv(pipe, windows_power[n_window], labels, n_splits=n_splits)
+    #    res.append(accs)
+
+    try:
+        res = Parallel(-1)(delayed(run_cv)(pipe, windows_power[n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
+    except:
+        warnings.warn(
+            f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
+        return None
+
+
+    # save result of the folds in a dataframe.
+    # the unravelling of the res object can be a bit confusing.
+    # res is a list, each entry has 5 accuracy values, for each fold one.
+    # we need to now make sure that in the dataframe each row has one
+    # accuracy value and it's assigned timepoint, and also an indicator of the
+    # fold number
+    df_subj = pd.DataFrame({'participant': participant,
+                            'timepoint': np.repeat(range(len(windows_power)), n_splits),
+                            'accuracy': np.ravel(res),
+                            'split': list(range(n_splits)) * len(res)
+                            })
+
+    return df_subj

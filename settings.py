@@ -9,13 +9,33 @@ import os
 import getpass
 import platform
 import warnings
-import matplotlib.pyplot as plt
 #%%##########
 # SETTINGS
 #############
 
 caching = True # enable or disable caching
 # ... put some global settings here if you want
+
+
+# folderpath, where the epochs are stored
+epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+plot_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Plots/")
+
+# Regarding the following parameters:
+#  - if you are before preprocessing, choose the parameters as you like
+#  - if you want to use already prepocessed data, take the following parameters from the stored filenames you want to use!
+
+event_id_selection = 10
+tmin = -2.5
+tmax = 1
+# for the fileending, choose between the following:
+# ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
+fileending = ""
+# either choose "RandomForest" or "LogisticRegression" as classifier
+classifier = "LogisticRegression"
+
+
+
 
 #%%###################
 # USER-SPECIFIC PATHS
@@ -27,7 +47,7 @@ home = os.path.expanduser('~')
 
 cachedir = None  # folder with fast i/o for caching files via joblib
 datadir = None   # folder with the MEG data (i.e. FIF files)
-epochs_folderpath = None  # folder where the resulting epochs should be stored
+#epochs_folderpath = None  # folder where the resulting epochs should be stored
 
 if username == 'vera.kluetz' and host=='zilxap29':  # klipscalc host
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'

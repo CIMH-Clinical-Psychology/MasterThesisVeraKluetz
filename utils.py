@@ -10,6 +10,7 @@ e.g. loading of responses from participants
 """
 import os
 import settings
+import functions
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,6 +18,8 @@ import warnings
 import seaborn as sns
 from joblib import Memory
 from sklearn import feature_extraction
+
+import utils
 
 mem = Memory(settings.cachedir)
 
@@ -266,6 +269,70 @@ def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
     # make read-only to prevent accidental changes in views
     windows.flags.writeable = False
     return windows
+
+def load_epoch(participant):
+    '''Reads the epochs saved at the epochs folderpath and parameters set in the settings.py. Filename has the format
+    participant_event_id_selection_tmin_tmax_fileending. Tries to read in the epochs, otherwise prints a warning.
+    Input: participant number in the 2-digit format, 01,02,...34,35
+    Returns: either the epochs read from a fif file, or None if it could not be read'''
+
+    filename_epoch = f'participant{participant}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
+    full_filename_fif = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
+    # read the epochs
+    try:
+        epochs = functions.read_epoch_cached_fif(full_filename_fif)
+        return(epochs)
+    except:
+        warnings.warn(f"Epochs: There is no epochs file for participant number {participant}. \n "
+              f"If you expected the file to exist, please check the parameters given for the filename creation. \n "
+              f"Proceeding with next participant.\n")
+        return None
+
+
+def get_quadrant_data(participant, tmin=-3, tmax=1):
+    ''' reads the epochs and also loads the information in which quadrant the gif was shown. It then converts this information into
+    numbers (A becomes 1, B becomes 2,...). It takes into account how many epochs there could possibly be and only takes the
+    gif position of those epochs that are actually stored after preprocessing.
+    Input: participant number in 2-digit format 01,02,...
+    Returns: epochs read from fif file; and gif positions as np.array'''
+
+    # read the epochs
+    epochs = load_epoch(participant)
+
+    # read the "solution"/target, in which quadrant it was shown
+    try:
+        df_subj = load_exp_data(participant)
+    except:
+        warnings.warn(f"Quadrants: There is no quadrant information for participant number {participant}. \n "
+              f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
+              f"Make sure that the file is not currently opened by another program!!\n "
+              f"Proceeding with next participant.\n")
+        return epochs, None
+
+    # -------------------- create target containing the gif positions --------------
+    # only select the targets, that belong to the epochs that have not been rejected
+    df_subj_gif = df_subj['gif_position']
+    # get_quadrants(subjektname, epochs)
+    # all_poss_epoch_idx = np.arange(start=2, stop=144 * 10, step=10)
+    lowest_epoch_idx = epochs.selection[0]
+    lowest_possible_epoch_idx = lowest_epoch_idx % 10
+    all_poss_epoch_idx = np.arange(start=lowest_possible_epoch_idx, stop=144 * 10, step=10)
+
+    true_epoch_idx = epochs.selection
+
+    gif_pos_chars = []
+    for i in np.arange(144):
+        if all_poss_epoch_idx[i] in true_epoch_idx:
+            gif_pos_chars.append(df_subj_gif[i])
+
+    # convert letter to number
+    char_to_num = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+    # char_to_num = {'A': 0, 'B': 0.33, 'C': 0.66, 'D': 1}
+    gif_pos = [char_to_num[i] for i in gif_pos_chars]
+    gif_pos = np.array(gif_pos)
+    # todo: Does the char to num even make a difference?
+
+    return epochs, gif_pos
 
 
 
