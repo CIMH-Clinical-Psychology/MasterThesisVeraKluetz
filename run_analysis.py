@@ -41,7 +41,7 @@ for p, participant in enumerate(participants):
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
-    windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.25) #todo: is step size to big? only 50% overlap
+    windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.2) #todo: is step size to big? only 50% overlap
     #shape(144, 306, 13, 500)
 
 
@@ -53,7 +53,6 @@ for p, participant in enumerate(participants):
     #PCA(200).fit?transform([2200x1555])
 
     windows_power = functions.get_windows_power(windows, sfreq)
-
     # just for the fun of it, plot mean alpha power over time for each channel
     # there should be a streak of occipital channels showing higher alpha
     plt.imshow(np.mean(windows_power, axis=1).T, aspect='auto') #interpolation = none
