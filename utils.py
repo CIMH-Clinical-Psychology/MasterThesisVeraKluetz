@@ -213,6 +213,7 @@ def normalize_lims(axs, which='both'):
         for ax in axs:
             getattr(ax, f'set_{w}lim')([ymin, ymax])
 
+
 def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
     """extract 1d signal windows from an ndimensional array
 
@@ -270,6 +271,7 @@ def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
     windows.flags.writeable = False
     return windows
 
+  
 def load_epoch(participant):
     '''Reads the epochs saved at the epochs folderpath and parameters set in the settings.py. Filename has the format
     participant_event_id_selection_tmin_tmax_fileending. Tries to read in the epochs, otherwise prints a warning.
@@ -333,6 +335,91 @@ def get_quadrant_data(participant, tmin=-3, tmax=1):
     # todo: Does the char to num even make a difference?
 
     return epochs, gif_pos
+
+
+  
+ ########################
+  
+def _window_view(a, window, step = None, axis = None, readonly = True):
+    """
+    Create a windowed view over `n`-dimensional input that uses an 
+    `m`-dimensional window, with `m <= n`
+
+    Parameters
+    -------------
+    a : Array-like
+        The array to create the view on
+
+    window : tuple or int
+        If int, the size of the window in `axis`, or in all dimensions if 
+        `axis == None`
+
+        If tuple, the shape of the desired window.  `window.size` must be:
+            equal to `len(axis)` if `axis != None`, else 
+            equal to `len(a.shape)`, or 
+            1
+
+    step : tuple, int or None
+        The offset between consecutive windows in desired dimension
+        If None, offset is one in all dimensions
+        If int, the offset for all windows over `axis`
+        If tuple, the step along each `axis`.  
+            `len(step)` must me equal to `len(axis)`
+
+    axis : tuple, int or None
+        The axes over which to apply the window
+        If None, apply over all dimensions
+        if tuple or int, the dimensions over which to apply the window
+
+    generator : boolean
+        Creates a generator over the windows 
+        If False, it will be an array with 
+            `a.nidim + 1 <= a_view.ndim <= a.ndim *2`.  
+        If True, generates one window per .next() call
+    
+    readonly: return array as readonly
+
+    Returns
+    -------
+
+    a_view : ndarray
+        A windowed view on the input array `a`, or a generator over the windows   
+
+    """
+    ashp = np.array(a.shape)
+    if axis != None:
+        axs = np.array(axis, ndmin = 1)
+        assert np.all(np.in1d(axs, np.arange(ashp.size))), "Axes out of range"
+    else:
+        axs = np.arange(ashp.size)
+
+    window = np.array(window, ndmin = 1)
+    assert (window.size == axs.size) | (window.size == 1), "Window dims and axes don't match"
+    wshp = ashp.copy()
+    wshp[axs] = window
+    assert np.all(wshp <= ashp), "Window is bigger than input array in axes"
+
+    stp = np.ones_like(ashp)
+    if step:
+        step = np.array(step, ndmin = 1)
+        assert np.all(step > 0), "Only positive step allowed"
+        assert (step.size == axs.size) | (step.size == 1), "step and axes don't match"
+        stp[axs] = step
+
+    astr = np.array(a.strides)
+
+    shape = tuple((ashp - wshp) // stp + 1) + tuple(wshp)
+    strides = tuple(astr * stp) + tuple(astr)
+
+    as_strided = np.lib.stride_tricks.as_strided
+    a_view = np.squeeze(as_strided(a, 
+                                 shape = shape, 
+                                 strides = strides, writeable=not readonly))
+    
+    return a_view
+
+
+
 
 
 

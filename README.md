@@ -6,7 +6,6 @@ trial workflow:
 
 ```
 blank screen 
-trigger 99
 (500 ms)
 fixation cross
 trigger 99
