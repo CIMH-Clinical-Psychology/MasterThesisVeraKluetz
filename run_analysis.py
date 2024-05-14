@@ -28,7 +28,7 @@ for p, participant in enumerate(participants):
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
     epochs, labels = utils.get_quadrant_data(participant)
-    if (epochs or labels) == None:
+    if epochs is None or labels is None:
         continue
 
     # get sampling frequency
