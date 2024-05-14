@@ -10,12 +10,16 @@ e.g. loading of responses from participants
 """
 import os
 import settings
+import functions
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 import seaborn as sns
 from joblib import Memory
+from sklearn import feature_extraction
+
+import utils
 
 mem = Memory(settings.cachedir)
 
@@ -209,6 +213,133 @@ def normalize_lims(axs, which='both'):
         for ax in axs:
             getattr(ax, f'set_{w}lim')([ymin, ymax])
 
+
+def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
+    """extract 1d signal windows from an ndimensional array
+
+    window_size and step_size are defined in terms of seconds
+    this will extract a so called 'view' to the array, so the memory footprint
+    is the same as the original array as no data is copied. The resulting
+    views are therefore write protected to prevent accidental alteration.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        input array
+    sfreq : int | float
+        sampling frequency.
+    window_size : int | float
+        window size in seconds.
+    step_size : int | float
+        window size in seconds.
+    axis : int, optional
+        axis that is denominating the time. The default is -1.
+    Returns
+    -------
+    windows : np.ndarray
+        array with the extracted windows as the last two dimensions
+
+    """
+
+    win_size_samples = win_size * sfreq
+    step_size_samples = step_size * sfreq
+
+    if np.round(win_size_samples) != (win_size_samples := int(win_size_samples)):
+        rounded_length = win_size_samples / sfreq
+        warnings.warn(f'{win_size=} s cannot accurately be represented with {sfreq=}, using {rounded_length:.3f} s')
+
+    if np.round(step_size_samples) != (step_size_samples := int(step_size_samples)):
+        rounded_length = step_size_samples / sfreq
+        warnings.warn(f'{step_size=} s cannot accurately be represented with {sfreq=}, using {rounded_length:.3f} s')
+
+    patch_shape = np.ones_like(arr.shape)
+    extraction_step = np.ones_like(arr.shape)
+    patch_shape[axis] = win_size_samples
+    extraction_step[axis] = step_size_samples
+
+    assert patch_shape[axis] <= arr.shape[axis], f'requested {win_size_samples=} > {arr.shape[axis]} of {axis=}'
+
+    windows = feature_extraction.image._extract_patches(arr, patch_shape=patch_shape,
+                                                        extraction_step=extraction_step)
+
+    # last but not least get rid of the singular dimensions
+    new_shape = list(windows.shape[:arr.ndim]) + [x for x in windows.shape[arr.ndim:] if x > 1]
+
+    # there are some empty dimension
+    windows = windows.reshape(new_shape)
+    # make read-only to prevent accidental changes in views
+    windows.flags.writeable = False
+    return windows
+
+  
+def load_epoch(participant):
+    '''Reads the epochs saved at the epochs folderpath and parameters set in the settings.py. Filename has the format
+    participant_event_id_selection_tmin_tmax_fileending. Tries to read in the epochs, otherwise prints a warning.
+    Input: participant number in the 2-digit format, 01,02,...34,35
+    Returns: either the epochs read from a fif file, or None if it could not be read'''
+
+    filename_epoch = f'participant{participant}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
+    full_filename_fif = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
+    # read the epochs
+    try:
+        epochs = functions.read_epoch_cached_fif(full_filename_fif)
+        return(epochs)
+    except:
+        warnings.warn(f"Epochs: There is no epochs file for participant number {participant}. \n "
+              f"If you expected the file to exist, please check the parameters given for the filename creation. \n "
+              f"Proceeding with next participant.\n")
+        return None
+
+
+def get_quadrant_data(participant, tmin=-3, tmax=1):
+    ''' reads the epochs and also loads the information in which quadrant the gif was shown. It then converts this information into
+    numbers (A becomes 1, B becomes 2,...). It takes into account how many epochs there could possibly be and only takes the
+    gif position of those epochs that are actually stored after preprocessing.
+    Input: participant number in 2-digit format 01,02,...
+    Returns: epochs read from fif file; and gif positions as np.array'''
+
+    # read the epochs
+    epochs = load_epoch(participant)
+
+    # read the "solution"/target, in which quadrant it was shown
+    try:
+        df_subj = load_exp_data(participant)
+    except:
+        warnings.warn(f"Quadrants: There is no quadrant information for participant number {participant}. \n "
+              f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
+              f"Make sure that the file is not currently opened by another program!!\n "
+              f"Proceeding with next participant.\n")
+        return epochs, None
+
+    # -------------------- create target containing the gif positions --------------
+    # only select the targets, that belong to the epochs that have not been rejected
+    df_subj_gif = df_subj['gif_position']
+    # get_quadrants(subjektname, epochs)
+    # all_poss_epoch_idx = np.arange(start=2, stop=144 * 10, step=10)
+    lowest_epoch_idx = epochs.selection[0]
+    lowest_possible_epoch_idx = lowest_epoch_idx % 10
+    all_poss_epoch_idx = np.arange(start=lowest_possible_epoch_idx, stop=144 * 10, step=10)
+
+    true_epoch_idx = epochs.selection
+
+    gif_pos_chars = []
+    for i in np.arange(144):
+        if all_poss_epoch_idx[i] in true_epoch_idx:
+            gif_pos_chars.append(df_subj_gif[i])
+
+    # convert letter to number
+    char_to_num = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+    # char_to_num = {'A': 0, 'B': 0.33, 'C': 0.66, 'D': 1}
+    gif_pos = [char_to_num[i] for i in gif_pos_chars]
+    gif_pos = np.array(gif_pos)
+    # todo: Does the char to num even make a difference?
+
+    return epochs, gif_pos
+
+
+  
+ ########################
+  
 def _window_view(a, window, step = None, axis = None, readonly = True):
     """
     Create a windowed view over `n`-dimensional input that uses an 
@@ -288,28 +419,7 @@ def _window_view(a, window, step = None, axis = None, readonly = True):
     return a_view
 
 
-def extract_windows(signal, sfreq, winsize, stepsize=None, axis=-1):
-    """ 
-    Extract windows from a signal of a given window size with striding step
-    
-    :param sfreq:    the sampling frequency of the signal
-    :param winsize:  the size of the window when sliding through signal
-                     in seconds
-    :param stepsize: stepize of the window extraction in seconds. 
-                     If None, defaults to 1
-    :param axis:     on which axis to extract the windows
-    """ 
-    if stepsize is None: stepsize = 1/sfreq
-    stepsize *= sfreq  # convert to sample space
-    winsize *= sfreq  # convert to sample space
-    assert signal.shape[axis]>=winsize, 'signal is shorter than window size'
-    n_step = signal.shape[axis]//stepsize
-    
-    if axis<0:
-        axis = np.arange(signal.ndim)[axis]
-    windows = _window_view(signal, window=winsize, step=stepsize,
-                           axis=axis, readonly=True)
-    return windows
+
 
 
 
