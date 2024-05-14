@@ -303,7 +303,23 @@ def plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_su
     plt.pause(0.1)  # necessary for plotting to update
 
 
-def get_windows_power(windows, sfreq):
+def get_windows_power(windows, sfreq, axis=-1):
+    w = scipy.fftpack.rfft(windows, axis=axis)
+    freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
+    # w.shape = (144, 306, 500)
+    # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
+    power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
+    return power, freqs
+
+def get_bands_power(windows, sfreq, bands, axis=-1):
+    power, freqs = get_windows_power(windows, sfreq, axis=axis)
+    bands_power = []
+    for min_freq, max_freq in bands:
+        idx1 = np.argmax(freqs >= min_freq)  # not completely sure if >= or >
+        idx2 = np.argmax(freqs > max_freq)  # not completely sure if >= or >
+        mean_power = power.take(indices=range(idx1, idx2), axis=axis).mean(axis)
+        bands_power.append(mean_power)
+    return np.array(bands_power)
     '''returns a list of lists of e.g. alpha power. Each alhpa power has the shape (epochs x channel)'''
     windows_power = []
 
@@ -364,14 +380,13 @@ def decode_features(windows_power, labels, participant):
     elif settings.classifier == "RandomForest":
         clf = RandomForestClassifier(n_estimators=100, random_state=99)
     else:
-        print("No valid classifier was selected")
-        exit()
+        raise ValueError(f"No valid classifier was selected {settings.classifier=}")
 
     pipe = Pipeline(steps=[('scaler', StandardScaler()),
                            ('classifier', clf)])
     # calculate all the timepoints in parallel massively speeds up calculation
     n_splits = 5
-    tqdm_loop = tqdm(range(len(windows_power)), total=len(windows_power), desc='calculating timepoints')
+    tqdm_loop = tqdm(np.arange(len(windows_power)), desc='calculating timepoints')
 
 
     #res=[]
