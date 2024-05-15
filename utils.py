@@ -274,11 +274,11 @@ def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
   
 def load_epoch(participant):
     '''Reads the epochs saved at the epochs folderpath and parameters set in the settings.py. Filename has the format
-    participant_event_id_selection_tmin_tmax_fileending. Tries to read in the epochs, otherwise prints a warning.
+    participant_event_id_tmin_tmax_fileending. Tries to read in the epochs, otherwise prints a warning.
     Input: participant number in the 2-digit format, 01,02,...34,35
     Returns: either the epochs read from a fif file, or None if it could not be read'''
 
-    filename_epoch = f'participant{participant}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
+    filename_epoch = f'participant{participant}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
     full_filename_fif = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
     # read the epochs
     try:

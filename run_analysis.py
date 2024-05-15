@@ -108,7 +108,7 @@ for p, participant in enumerate(participants):
 
 # todo: take alpha out of hard coded description
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_alpha{settings.classifier}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                             f"feature_decoding_alpha{settings.classifier}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
 fig.savefig(plot_filename)
 
 end_time = time.time()

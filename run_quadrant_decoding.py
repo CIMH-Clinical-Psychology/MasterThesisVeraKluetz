@@ -103,7 +103,7 @@ for p, participant in enumerate(
 
 
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"quadrant_decoding_{settings.classifier}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                             f"quadrant_decoding_{settings.classifier}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
 fig.savefig(plot_filename)
 
 end_time = time.time()

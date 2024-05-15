@@ -281,7 +281,7 @@ def plot_epochs_per_participant(participants, list_num_epochs):
     plt.bar(x=participants, height=list_num_epochs, width=0.7)
 
     plot_filename = os.path.join(settings.plot_folderpath,
-                                 f"Epochs_per_participant_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                                 f"Epochs_per_participant_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
     plt.savefig(plot_filename)
     plt.show()
 
