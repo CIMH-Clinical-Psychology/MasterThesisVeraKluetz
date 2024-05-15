@@ -304,6 +304,7 @@ def plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_su
 
 
 def get_windows_power(windows, sfreq, axis=-1):
+    ##todo: check once in a while if taking all windows at once instead of looping through them takes up too much memory
     w = scipy.fftpack.rfft(windows, axis=axis)
     freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
     # w.shape = (144, 306, 500)
@@ -311,37 +312,29 @@ def get_windows_power(windows, sfreq, axis=-1):
     power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
     return power, freqs
 
-def get_bands_power(windows, sfreq, bands, axis=-1):
-    power, freqs = get_windows_power(windows, sfreq, axis=axis)
-    bands_power = []
-    for min_freq, max_freq in bands:
-        idx1 = np.argmax(freqs >= min_freq)  # not completely sure if >= or >
-        idx2 = np.argmax(freqs > max_freq)  # not completely sure if >= or >
-        mean_power = power.take(indices=range(idx1, idx2), axis=axis).mean(axis)
-        bands_power.append(mean_power)
-    return np.array(bands_power)
-    '''returns a list of lists of e.g. alpha power. Each alhpa power has the shape (epochs x channel)'''
-    #todo: check once in a while if taking all windows at once instead of looping through them takes up too much memory
-    windows_power = []
-    # convert to frequency domain via rfft (we don't need the imaginary part)
-    w = scipy.fftpack.rfft(windows, axis=-1)
-    freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
-    # w.shape = (144, 306, 16, 500)
-    # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
-    power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
-    # e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
-    # now you can use these to calculate brain bands, e.g.
-    alpha = [8, 14]
-    alpha_idx1 = np.argmax(freqs > alpha[0])
-    alpha_idx2 = np.argmax(freqs > alpha[1])
-    alpha_power = power[:, :, :, alpha_idx1:alpha_idx2].mean(-1)
-    # alpha_power .shape = (144, 306, 6)
-    # for each epoch, for each channel, for each window, one alpha power value
-    windows_power += [alpha_power[:,:,i] for i in np.arange(windows.shape[2])]  # add alpha power values of each window to list
+    # previous get_windows_power code
+    #'''returns a list of lists of e.g. alpha power. Each alhpa power has the shape (epochs x channel)'''
+    #windows_power = []
+    ## convert to frequency domain via rfft (we don't need the imaginary part)
+    #w = scipy.fftpack.rfft(windows, axis=-1)
+    #freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
+    ## w.shape = (144, 306, 16, 500)
+    ## freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
+    #power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
+    ## e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
+    ## now you can use these to calculate brain bands, e.g.
+    #alpha = [8, 14]
+    #alpha_idx1 = np.argmax(freqs > alpha[0])
+    #alpha_idx2 = np.argmax(freqs > alpha[1])
+    #alpha_power = power[:, :, :, alpha_idx1:alpha_idx2].mean(-1)
+    ## alpha_power .shape = (144, 306, 6)
+    ## for each epoch, for each channel, for each window, one alpha power value
+    #windows_power += [alpha_power[:,:,i] for i in np.arange(windows.shape[2])]  # add alpha power values of each window to list
+#
+    #return windows_power
 
-    return windows_power
 
-    # code for looping through each window individually
+    ## even more old get_windwos_power code for looping through each window individually
     #windows_power = []
     ## loop through windows
     #for i in tqdm(range(windows.shape[2])):
@@ -366,24 +359,32 @@ def get_bands_power(windows, sfreq, bands, axis=-1):
     #return windows_power
 
 
+
+
+def get_bands_power(windows, sfreq, bands, axis=-1):
+    '''returns an array of shape (n_bands x n_epochs x n_channels x n_windows)'''
+    power, freqs = get_windows_power(windows, sfreq, axis=axis)
+    bands_power = []
+    for min_freq, max_freq in bands:
+        idx1 = np.argmax(freqs >= min_freq)  # not completely sure if >= or >
+        idx2 = np.argmax(freqs > max_freq)  # not completely sure if >= or >
+        mean_power = power.take(indices=range(idx1, idx2), axis=axis).mean(axis)
+        bands_power.append(mean_power)
+    return np.array(bands_power)
+
+
+
 def decode_features(windows_power, labels, participant):
     '''
     performs cross validation with a classifier set in the settings and the StandardScaler
 
     input:
-    windows_power: list (n = amount of windows per epoch) containing arrays with the shape (epochs x channels)
+    windows_power: shape (n_bands x n_epochs x n_channels x n_windows)
     labels: 1D with the target values
     participant: string with participant number
 
     returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy, split
     '''
-    # windows: shape(144, 306, 13, 500)
-    # windows_power: list len 13 containing arrays shape(144, 306)
-
-    # alpha_power .shape = (144, 306),
-    # for each epoch, for each channel one alpha power value
-    #windows_power += [alpha_power]
-
 
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
     print(' Decoding')
@@ -405,7 +406,7 @@ def decode_features(windows_power, labels, participant):
                            ('classifier', clf)])
     # calculate all the timepoints in parallel massively speeds up calculation
     n_splits = 5
-    tqdm_loop = tqdm(np.arange(len(windows_power)), desc='calculating timepoints')
+    tqdm_loop = tqdm(np.arange(windows_power.shape[3]), desc='calculating timepoints')
 
 
     #res=[]
@@ -414,7 +415,7 @@ def decode_features(windows_power, labels, participant):
     #    res.append(accs)
 
     try:
-        res = Parallel(-1)(delayed(run_cv)(pipe, windows_power[n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
+        res = Parallel(-1)(delayed(run_cv)(pipe, windows_power[:,:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
     except:
         warnings.warn(
             f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
@@ -428,7 +429,7 @@ def decode_features(windows_power, labels, participant):
     # accuracy value and it's assigned timepoint, and also an indicator of the
     # fold number
     df_subj = pd.DataFrame({'participant': participant,
-                            'timepoint': np.repeat(range(len(windows_power)), n_splits),
+                            'timepoint': np.repeat(range(windows_power.shape[3]), n_splits),
                             'accuracy': np.ravel(res),
                             'split': list(range(n_splits)) * len(res)
                             })

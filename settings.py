@@ -26,6 +26,13 @@ plot_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Plots/")
 #  - if you want to use already prepocessed data, take the following parameters from the stored filenames you want to use!
 
 event_id_selection = 10
+#event_id = {'trigger_preimage': 10,
+#            'trigger_gif_onset': 20,
+#            'trigger_gif_offset': 30,
+#            'trigger_fixation': 99,
+#            'trigger_valence_start': 101,
+#            'trigger_arousal_start': 102,
+#            'trigger_flanker_start': 104}
 tmin = -2.5
 tmax = 1
 # for the fileending, choose between the following:

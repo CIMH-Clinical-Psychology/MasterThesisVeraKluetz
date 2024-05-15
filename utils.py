@@ -338,8 +338,8 @@ def get_quadrant_data(participant, tmin=-3, tmax=1):
 
 
   
- ########################
-  
+
+#todo: the function below does not get used, delete it?
 def _window_view(a, window, step = None, axis = None, readonly = True):
     """
     Create a windowed view over `n`-dimensional input that uses an 
