@@ -19,10 +19,6 @@ import seaborn as sns
 import autoreject
 from joblib import Memory
 from sklearn.model_selection import StratifiedKFold
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 import scipy
@@ -287,21 +283,40 @@ def plot_epochs_per_participant(participants, list_num_epochs):
     plt.show()
 
 
-def plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all):
-    '''plots a subject into the small axis and then updates the summary of all participants in the lower right plot'''
-    # first plot this participant into the small axis
-    ax = axs[p]  # select axis of this participant
+
+def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom):
+    fig = ax.figure
+    df_subj = df_all[df_all.participant==participant]
+    times = df_subj.timepoint
+
     sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
-    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
+    ax.hlines(0.25, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
     ax.set_title(f'{participant=}')
     # then plot a summary of all participant into the big plot
     ax_bottom.clear()  # clear axis from previous line
     sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
-    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--',
+    ax_bottom.hlines(0.25, min(times), max(times), linestyle='--',
                      color='gray')  # draw random chance line
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
     fig.tight_layout()
     plt.pause(0.1)  # necessary for plotting to update
+
+
+#def old_plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all):
+#    '''plots a subject into the small axis and then updates the summary of all participants in the lower right plot'''
+#    # first plot this participant into the small axis
+#    ax = axs[p]  # select axis of this participant
+#    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
+#    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
+#    ax.set_title(f'{participant=}')
+#    # then plot a summary of all participant into the big plot
+#    ax_bottom.clear()  # clear axis from previous line
+#    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
+#    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--',
+#                     color='gray')  # draw random chance line
+#    ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
+#    fig.tight_layout()
+#    plt.pause(0.1)  # necessary for plotting to update
 
 
 def get_windows_power(windows, sfreq, axis=-1):
@@ -375,7 +390,7 @@ def get_bands_power(windows, sfreq, bands, axis=-1):
 
 
 
-def decode_features(windows_power, labels, participant):
+def decode_features(windows_power, labels, participant, pipe, timepoints, n_splits=5, n_jobs=-1):
     '''
     performs cross validation with a classifier set in the settings and the StandardScaler
 
@@ -391,35 +406,27 @@ def decode_features(windows_power, labels, participant):
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
-    # could also use RandomForest, as it's more robust, should always work out of the box
-    # C parameter is important to set regularization, might overregularize else
-    if settings.classifier == "LogisticRegression":
-        clf = LogisticRegression(C=10, max_iter=1000, random_state=99)
-    elif settings.classifier == "RandomForest":
-        clf = RandomForestClassifier(n_estimators=100, random_state=99)
-    else:
-        raise ValueError(f"No valid classifier was selected {settings.classifier=}")
+    # Access and change the random_state parameter for the new classifier
+    pipe.set_params(classifier__random_state=99)
 
-    pipe = Pipeline(steps=[('scaler', StandardScaler()),
-                           ('classifier', clf)])
+    #
     # calculate all the timepoints in parallel massively speeds up calculation
-    n_splits = 5
     tqdm_loop = tqdm(np.arange(windows_power.shape[2]), desc='calculating timepoints')
-
 
     #res=[]
     #for n_window in range(13):
-    #    accs = functions.run_cv(pipe, windows_power[n_window], labels, n_splits=n_splits)
-    #    res.append(accs)
-
+    #    res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
     try:
-        res = Parallel(-1)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
+        res = Parallel(n_jobs)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
     except:
         warnings.warn(
             f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
         return None
 
 
+    timepoints = np.linspace(timepoints[0], timepoints[-1], windows_power.shape[2])
+    timepoints = [f"{x:.1f}" for x in timepoints]
+    timepoints = np.array(timepoints, dtype=float)
     # save result of the folds in a dataframe.
     # the unravelling of the res object can be a bit confusing.
     # res is a list, each entry has 5 accuracy values, for each fold one.
@@ -427,7 +434,7 @@ def decode_features(windows_power, labels, participant):
     # accuracy value and it's assigned timepoint, and also an indicator of the
     # fold number
     df_subj = pd.DataFrame({'participant': participant,
-                            'timepoint': np.repeat(range(windows_power.shape[2]), n_splits),
+                            'timepoint': np.repeat(timepoints, n_splits),
                             'accuracy': np.ravel(res),
                             'split': list(range(n_splits)) * len(res)
                             })
@@ -447,7 +454,7 @@ def reshape_windows_power(windows_power):
 
 
 def pca_fit_transform(data, n_components=200):
-    pca = PCA(n_components)
+    pca = PCA(n_components, random_state=99)
     data = pca.fit_transform(data)
     return data
 

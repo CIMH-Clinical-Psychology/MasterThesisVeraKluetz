@@ -9,6 +9,10 @@ import os
 import getpass
 import platform
 import warnings
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 #%%##########
 # SETTINGS
 #############
@@ -38,8 +42,14 @@ tmax = 1
 # for the fileending, choose between the following:
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
 fileending = ""
-# either choose "RandomForest" or "LogisticRegression" as classifier
-classifier = "LogisticRegression"
+
+# --- select classifier ----
+clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else
+#clf = RandomForestClassifier(n_estimators=100, random_state=99) # could also use RandomForest, as it's more robust, should always work out of the box
+classifier_name = clf.__class__.__name__
+
+pipe = Pipeline(steps=[('scaler', StandardScaler()),
+                           ('classifier', clf)])
 
 
 

@@ -6,10 +6,6 @@ import settings
 import utils
 import functions
 import warnings
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -60,23 +56,12 @@ for p, participant in enumerate(
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
-    # could also use RandomForest, as it's more robust, should always work out of the box
-    # C parameter is important to set regularization, might overregularize else
-    if settings.classifier == "LogisticRegression":
-        clf = LogisticRegression(C=10, max_iter=1000, random_state=99)
-    elif settings.classifier == "RandomForest":
-        clf = RandomForestClassifier(n_estimators=100, random_state=99)
-    else:
-        print("No valid classifier was selected")
-        exit()
 
-    pipe = Pipeline(steps=[('scaler', StandardScaler()),
-                           ('classifier', clf)])
     # calculate all the timepoints in parallel massively speeds up calculation
     n_splits = 5
     tqdm_loop = tqdm(range(len(epochs.times)), total=len(epochs.times), desc='calculating timepoints')
     try:
-        res = Parallel(-1)(delayed(functions.run_cv)(pipe, data_x[:, :, t],
+        res = Parallel(-1)(delayed(functions.run_cv)(settings.pipe, data_x[:, :, t],
                                                      labels, n_splits=n_splits) for t in tqdm_loop)
     except:
         warnings.warn(
@@ -99,11 +84,10 @@ for p, participant in enumerate(
     df_all = pd.concat([df_all, df_subj])
 
     # update figure with subject
-    functions.plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all)
-
+    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom)
 
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"quadrant_decoding_{settings.classifier}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                             f"quadrant_decoding_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
 fig.savefig(plot_filename)
 
 end_time = time.time()

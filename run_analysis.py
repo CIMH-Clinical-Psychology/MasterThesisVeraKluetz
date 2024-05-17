@@ -7,8 +7,11 @@ import numpy as np
 import functions
 import pandas as pd
 
+
 os.nice(1)  # make sure we're not clogging the CPU
 plt.ion()
+
+
 
 n_components_pca = 544
 bands_selection = ['delta', 'theta', 'alpha', 'beta']
@@ -19,8 +22,10 @@ bands_dict = {'delta': [1, 4],
                    'beta': [13, 30]}
 
 
+
 # measure code execution
 start_time = time.time()
+
 
 # loop through each participants number from 01 to 35
 missing = [25, 28, 31]
@@ -41,6 +46,7 @@ for p, participant in enumerate(participants):
 
     # get sampling frequency
     sfreq=epochs.info['sfreq']
+    timepoints = epochs.times
     # extract data stored in epochs
     data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
 
@@ -50,7 +56,7 @@ for p, participant in enumerate(participants):
         continue  # some participants have very few usable epochs
 
     windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.2) #todo: is step size 0.25 to big? only 50% overlap
-    #shape(144, 306, 13, 500)
+    #shape(144, 306, 16, 500)
 
     bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
 
@@ -86,7 +92,7 @@ for p, participant in enumerate(participants):
     pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
     pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
 
-    df_subj = functions.decode_features(pca_windows_power, labels, participant)
+    df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints)
     if df_subj is None:
         continue
 
@@ -94,12 +100,13 @@ for p, participant in enumerate(participants):
     df_all = pd.concat([df_all, df_subj])
 
     # update figure with subject
-    functions.plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all)
+    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom)
+
 
 
 bands_string = result = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_{bands_string}_{settings.classifier}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
 
 fig.savefig(plot_filename)
 
