@@ -10,19 +10,13 @@ import pandas as pd
 os.nice(1)  # make sure we're not clogging the CPU
 plt.ion()
 
-bands_selection = ['theta', 'alpha']
+n_components_pca = 544
+bands_selection = ['delta', 'theta', 'alpha', 'beta']
 
 bands_dict = {'delta': [1, 4],
                    'theta': [4, 8],
                    'alpha': [8, 12],
                    'beta': [13, 30]}
-
-
-
-
-
-
-
 
 
 # measure code execution
@@ -48,7 +42,7 @@ for p, participant in enumerate(participants):
     # get sampling frequency
     sfreq=epochs.info['sfreq']
     # extract data stored in epochs
-    data_x = epochs.get_data() #shape(144, 306, 3501)
+    data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
 
     # if there are less than 20 epochs, skip this participant
     if len(data_x) < 20:
@@ -58,6 +52,29 @@ for p, participant in enumerate(participants):
     windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.2) #todo: is step size 0.25 to big? only 50% overlap
     #shape(144, 306, 13, 500)
 
+    bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
+
+    windows_power = functions.get_bands_power(windows, sfreq, bands)
+    # shape (2,34,306,16)
+
+    #uncomment this for saving a picture of alpha and or theta waves, note that is happens for every participant and overwrites the previous one
+    #for i in range(windows_power.shape[0]):
+    #    # just for the fun of it, plot e.g. mean alpha power over time for each channel
+    #    # there should be a streak of occipital channels showing higher alpha
+    #    fig_pow = plt.figure()
+    #    ax_pow = fig_pow.subplots(1,1)
+    #    ax_pow.imshow(np.mean(windows_power[i,:,:,:], axis=0), aspect='auto') #interpolation = none
+    #    ax_pow.set_xlabel('timestep of window')
+    #    ax_pow.set_ylabel('channel number')
+    #    filename = f"Feature_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
+    #    plot_filename = os.path.join(settings.plot_folderpath, filename)
+    #    fig_pow.savefig(plot_filename)
+        #fig_pow.show()
+
+
+    windows_power = functions.reshape_windows_power(windows_power)
+    # shape (34, 2 * 306, 16)
+
 
     #todo: 1. extract beta, gamma, delta, theta values
     # 2. add them all on the channel dimension, so that the window with x features has shape (144, x*306, 13, 500)
@@ -65,37 +82,11 @@ for p, participant in enumerate(participants):
     # 4. normal PCA works with 2D arrays, so take 306*(144*13)
     #np.hstack([144, 306, 13].T) -> 306x(144x13).T
     #PCA(200).fit?transform([2200x1555])
+    windows_power = functions.reshape_windows_power_for_pca(windows_power)
+    pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
+    pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
 
-    bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
-
-    #todos:
-    # in functions.decode features bring data_X_T into 2D format as said above for cv to work
-
-  # windows power: make sure everything after first ssave fig is correctly with the new 4. dimension
-    #2. make sure 2 plot, the big one, is displayed correctly bebecause we now create a new figure before
-
-
-    windows_power = functions.get_bands_power(windows, sfreq, bands)
-    # shape (2,34,306,16)
-
-
-
-    #windows_power = functions.get_windows_power(windows, sfreq)
-    for i in range(windows_power.shape[0]):
-        # just for the fun of it, plot e.g. mean alpha power over time for each channel
-        # there should be a streak of occipital channels showing higher alpha
-        fig_pow = plt.figure()
-        ax_pow = fig_pow.subplots(1,1)
-        ax_pow.imshow(np.mean(windows_power[i,:,:,:], axis=0), aspect='auto') #interpolation = none
-        ax_pow.set_xlabel('timestep of window')
-        ax_pow.set_ylabel('channel number')
-        filename = f"Feature_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
-        plot_filename = os.path.join(settings.plot_folderpath, filename)
-        fig_pow.savefig(plot_filename)
-        #fig_pow.show()
-
-
-    df_subj = functions.decode_features(windows_power, labels, participant)
+    df_subj = functions.decode_features(pca_windows_power, labels, participant)
     if df_subj is None:
         continue
 
@@ -106,9 +97,10 @@ for p, participant in enumerate(participants):
     functions.plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all)
 
 
-# todo: take alpha out of hard coded description
+bands_string = result = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_alpha{settings.classifier}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_{settings.classifier}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
+
 fig.savefig(plot_filename)
 
 end_time = time.time()

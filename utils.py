@@ -278,7 +278,7 @@ def load_epoch(participant):
     Input: participant number in the 2-digit format, 01,02,...34,35
     Returns: either the epochs read from a fif file, or None if it could not be read'''
 
-    filename_epoch = f'participant{participant}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
+    filename_epoch = f'participant{participant}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
     full_filename_fif = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
     # read the epochs
     try:

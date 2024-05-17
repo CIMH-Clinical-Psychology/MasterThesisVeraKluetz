@@ -23,6 +23,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.decomposition import PCA
 from tqdm import tqdm
 import scipy
 
@@ -379,17 +380,14 @@ def decode_features(windows_power, labels, participant):
     performs cross validation with a classifier set in the settings and the StandardScaler
 
     input:
-    windows_power: shape (n_bands x n_epochs x n_channels x n_windows)
+    windows_power: shape(epochs, bands*channels, windows)
     labels: 1D with the target values
     participant: string with participant number
 
     returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy, split
     '''
 
-    print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
-    print(' Decoding')
-    print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
-
+    print(' Decoding starts')
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
@@ -406,7 +404,7 @@ def decode_features(windows_power, labels, participant):
                            ('classifier', clf)])
     # calculate all the timepoints in parallel massively speeds up calculation
     n_splits = 5
-    tqdm_loop = tqdm(np.arange(windows_power.shape[3]), desc='calculating timepoints')
+    tqdm_loop = tqdm(np.arange(windows_power.shape[2]), desc='calculating timepoints')
 
 
     #res=[]
@@ -415,7 +413,7 @@ def decode_features(windows_power, labels, participant):
     #    res.append(accs)
 
     try:
-        res = Parallel(-1)(delayed(run_cv)(pipe, windows_power[:,:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
+        res = Parallel(-1)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
     except:
         warnings.warn(
             f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
@@ -429,9 +427,47 @@ def decode_features(windows_power, labels, participant):
     # accuracy value and it's assigned timepoint, and also an indicator of the
     # fold number
     df_subj = pd.DataFrame({'participant': participant,
-                            'timepoint': np.repeat(range(windows_power.shape[3]), n_splits),
+                            'timepoint': np.repeat(range(windows_power.shape[2]), n_splits),
                             'accuracy': np.ravel(res),
                             'split': list(range(n_splits)) * len(res)
                             })
 
     return df_subj
+
+
+def reshape_windows_power(windows_power):
+    '''reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)'''
+    # Get the original shape
+    bands, epochs, channels, windows = windows_power.shape
+
+    # Reshape to the desired shape
+    reshaped_windows_power = windows_power.transpose(1, 0, 2, 3).reshape(epochs, bands * channels, windows)
+
+    return reshaped_windows_power
+
+
+def pca_fit_transform(data, n_components=200):
+    pca = PCA(n_components)
+    data = pca.fit_transform(data)
+    return data
+
+
+def reshape_windows_power_for_pca(windows_power):
+    '''input: shape(epochs, bands*channels, windows)
+    output: shape(epochs*windows, bands*channels)
+    '''
+    epochs, bands_channels, windows = windows_power.shape
+    reshaped_windows_power = windows_power.transpose(0,2,1).reshape(epochs * windows, bands_channels)
+    return reshaped_windows_power
+
+
+def reshape_windows_power_after_pca(pca_windows_power, n_windows):
+    '''input: windows_power with shape (epochs*windows, bands*channels)
+    output: shape(epochs, bands*channels, windows)'''
+    epochs_windows, bands_channels = pca_windows_power.shape
+    epochs = int(epochs_windows/n_windows)
+
+    #windows_power = pca_windows_power.reshape(epochs, bands_channels, n_windows)
+    windows_power = pca_windows_power.reshape(epochs, n_windows, bands_channels).transpose(0, 2, 1)
+
+    return windows_power
