@@ -36,7 +36,7 @@ mem = Memory(settings.cachedir if settings.caching else None)  # only enable cac
 def read_raw_filtered_cached(fif_filepath, highpass, lowpass, notch):
     raw = mne.io.read_raw_fif(fif_filepath, preload=True, verbose='INFO')
     raw.filter(highpass, lowpass, n_jobs=-1)
-    if notch.all() != None:
+    if notch is not None:
         raw.notch_filter(notch)
     return raw
 
@@ -119,7 +119,7 @@ def autoreject_fit_cached(epochs):
 
 
 
-def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lowpass=50, notch = np.arange(50, 251, 50), picks = 'meg', fileending=None, autoreject = True, ica_ecg = True, ica_eog = True):
+def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lowpass=50, notch = np.arange(50, 251, 50), picks = 'meg', fileending="", autoreject = True, ica_ecg = True, ica_eog = True):
     """Loops through all participants, finds stimulus events, creates epochs and saves them. Depending on the input of
     the function, the data also gets higpass-, lowpass-, and notch-filtered; also ica including eog and ecg rejection
     can be included as well as autoreject of bad epochs"""
@@ -127,6 +127,8 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
     # creates a list of all participant numbers from 01 to 35 so that we can loop through them
     par_numbers = [str(i).zfill(2) for i in
                    range(1, 36)]  # for testing purposes we might use only 1 participant, so 2 instead of 36
+
+    fileending = (f'_{fileending}' if fileending != "" else fileending)
 
     # loop through each participant's data
     for participant in par_numbers:
@@ -139,6 +141,7 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
         print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
         fif_filepath = settings.datadir + f"ERP-{participant}/ERP{participant}_initial_tsss_mc.fif"
+        
         # read raw data
         try:
             print('###  loading and filtering data')
@@ -211,7 +214,6 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
 
         # --------------------- save epochs ---------------------------------------
         print('###  saving epochs')
-        fileending = (f'_{fileending}' if fileending != None else fileending)
         filename_epoch = f'{participant=}_{event_id_selection=}_{tmin=}_{tmax=}{fileending}'
         filename_epoch = valid_filename(filename_epoch)
         epoch_file_path = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
@@ -284,18 +286,18 @@ def plot_epochs_per_participant(participants, list_num_epochs):
 
 
 
-def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom):
+def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=0.25):
     fig = ax.figure
     df_subj = df_all[df_all.participant==participant]
     times = df_subj.timepoint
 
     sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
-    ax.hlines(0.25, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    ax.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
     ax.set_title(f'{participant=}')
     # then plot a summary of all participant into the big plot
     ax_bottom.clear()  # clear axis from previous line
     sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
-    ax_bottom.hlines(0.25, min(times), max(times), linestyle='--',
+    ax_bottom.hlines(random_chance, min(times), max(times), linestyle='--',
                      color='gray')  # draw random chance line
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
     fig.tight_layout()

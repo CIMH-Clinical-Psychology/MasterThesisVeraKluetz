@@ -40,7 +40,8 @@ for p, participant in enumerate(participants):
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    epochs, labels = utils.get_quadrant_data(participant)
+    #epochs, labels = utils.get_quadrant_data(participant)
+    epochs, labels = utils.get_valence_data(participant)
     if epochs is None or labels is None:
         continue
 
@@ -63,6 +64,15 @@ for p, participant in enumerate(participants):
     windows_power = functions.get_bands_power(windows, sfreq, bands)
     # shape (2,34,306,16)
 
+    for i in range(windows_power.shape[0]):
+        values= windows_power[i,:,:,:]
+        values = np.mean(values, axis=2)
+        values = np.mean(values, axis=0)
+        fig_head, ax_head = utils.plot_sensors(values)
+        filename = f"head_plot_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
+        plot_filename = os.path.join(settings.plot_folderpath, filename)
+        fig_head.savefig(plot_filename)
+
     #uncomment this for saving a picture of alpha and or theta waves, note that is happens for every participant and overwrites the previous one
     #for i in range(windows_power.shape[0]):
     #    # just for the fun of it, plot e.g. mean alpha power over time for each channel
@@ -82,17 +92,12 @@ for p, participant in enumerate(participants):
     # shape (34, 2 * 306, 16)
 
 
-    #todo: 1. extract beta, gamma, delta, theta values
-    # 2. add them all on the channel dimension, so that the window with x features has shape (144, x*306, 13, 500)
-    # 3. apply PCA for dimensionality reduction, see how many features explain how much of the variance to determine the right amount of components
-    # 4. normal PCA works with 2D arrays, so take 306*(144*13)
-    #np.hstack([144, 306, 13].T) -> 306x(144x13).T
-    #PCA(200).fit?transform([2200x1555])
+    #todo: apply PCA for dimensionality reduction, see how many features explain how much of the variance to determine the right amount of components
     windows_power = functions.reshape_windows_power_for_pca(windows_power)
     pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
     pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
 
-    df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints)
+    df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints, n_splits=3)
     if df_subj is None:
         continue
 
@@ -100,7 +105,7 @@ for p, participant in enumerate(participants):
     df_all = pd.concat([df_all, df_subj])
 
     # update figure with subject
-    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom)
+    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom, 0.2)
 
 
 

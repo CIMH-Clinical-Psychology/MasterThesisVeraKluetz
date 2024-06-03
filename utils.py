@@ -18,8 +18,7 @@ import warnings
 import seaborn as sns
 from joblib import Memory
 from sklearn import feature_extraction
-
-import utils
+import mne
 
 mem = Memory(settings.cachedir)
 
@@ -337,7 +336,101 @@ def get_quadrant_data(participant, tmin=-3, tmax=1):
     return epochs, gif_pos
 
 
+
+def get_valence_data(participant):
+    ''' reads the epochs and also loads the information which subjective valence rating from 1-5 was given. It takes
+    into account how many epochs there could possibly be and only takes the
+    valence rating of those epochs that are actually stored after preprocessing.
+    Input: participant number in 2-digit format 01,02,...
+    Returns: epochs read from fif file; and valence ratings as np.array'''
+
+    # read the epochs
+    epochs = load_epoch(participant)
+
+    # read the "solution"/target, in which quadrant it was shown
+    try:
+        df_subj = load_exp_data(participant)
+    except:
+        warnings.warn(f"Valence: There is no data for participant number {participant}. \n "
+                      f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
+                      f"Make sure that the file is not currently opened by another program!!\n "
+                      f"Proceeding with next participant.\n")
+        return epochs, None
+
+    # -------------------- create target containing the gif positions --------------
+    # only select the targets, that belong to the epochs that have not been rejected
+    df_subj_gif = df_subj['emo_valence.rating']
+    # get_quadrants(subjektname, epochs)
+    # all_poss_epoch_idx = np.arange(start=2, stop=144 * 10, step=10)
+    lowest_epoch_idx = epochs.selection[0]
+    lowest_possible_epoch_idx = lowest_epoch_idx % 10
+    all_poss_epoch_idx = np.arange(start=lowest_possible_epoch_idx, stop=144 * 10, step=10)
+
+    true_epoch_idx = epochs.selection
+
+    valence_rating_str = []
+    for i in np.arange(144):
+        if all_poss_epoch_idx[i] in true_epoch_idx:
+            valence_rating_str.append(df_subj_gif[i])
+
+    # convert letter to number
+    #char_to_num = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+    # char_to_num = {'A': 0, 'B': 0.33, 'C': 0.66, 'D': 1}
+    valence_rating_num = [int(i) for i in valence_rating_str]
+    valence_rating = np.array(valence_rating_num)
+    # todo: Does the char to num even make a difference?
+
+    return epochs, valence_rating
+
   
+
+def get_nonsubj_valence_data(participant, tmin=-3, tmax=1):
+    ''' reads the epochs and also loads the information which mean valence rating was given for this picture, positive or negative. It then converts this information into
+    numbers (pos becomes 0, neg becomes 1). It takes into account how many epochs there could possibly be and only takes the
+    gif position of those epochs that are actually stored after preprocessing.
+    Input: participant number in 2-digit format 01,02,...
+    Returns: epochs read from fif file; and mean valence rating as np.array'''
+
+    # read the epochs
+    epochs = load_epoch(participant)
+
+    # read the "solution"/target, in which quadrant it was shown
+    try:
+        df_subj = load_exp_data(participant)
+    except:
+        warnings.warn(f"Mean Valence: There is no information for participant number {participant}. \n "
+              f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
+              f"Make sure that the file is not currently opened by another program!!\n "
+              f"Proceeding with next participant.\n")
+        return epochs, None
+
+    # -------------------- create target containing the gif positions --------------
+    # only select the targets, that belong to the epochs that have not been rejected
+    df_subj_gif = df_subj['valence']
+    # get_quadrants(subjektname, epochs)
+    # all_poss_epoch_idx = np.arange(start=2, stop=144 * 10, step=10)
+    lowest_epoch_idx = epochs.selection[0]
+    lowest_possible_epoch_idx = lowest_epoch_idx % 10
+    all_poss_epoch_idx = np.arange(start=lowest_possible_epoch_idx, stop=144 * 10, step=10)
+
+    true_epoch_idx = epochs.selection
+
+    valence_rating = []
+    for i in np.arange(144):
+        if all_poss_epoch_idx[i] in true_epoch_idx:
+            valence_rating.append(df_subj_gif[i])
+
+    # convert letter to number
+    char_to_num = {'pos': 0, 'neg': 1}
+    # char_to_num = {'A': 0, 'B': 0.33, 'C': 0.66, 'D': 1}
+    valence_int = [char_to_num[i] for i in valence_rating]
+    valence_int = np.array(valence_int)
+    # todo: Does the char to num even make a difference?
+
+    return epochs, valence_int
+
+
+
 
 #todo: the function below does not get used, delete it?
 def _window_view(a, window, step = None, axis = None, readonly = True):
@@ -418,6 +511,90 @@ def _window_view(a, window, step = None, axis = None, readonly = True):
     
     return a_view
 
+
+
+def plot_sensors(values, mode='size', color=None, ax=None, cmap='Reds',
+                 title='Sensors active', vmin=None, vmax=None):
+    """
+    make a topo plot for MEG sensors
+
+    Parameters
+    ----------
+    values : list | np.ndarray
+        306 values corresponding to the sensors as they are present in
+        MEGIN MEG data. For mode=size, the larger the value, the larger the dot
+        will appear. For mode=binary, will either plot a colored dot (True) or
+        black dot (False).
+    title : str, optional
+        title of the plot. The default is 'Sensors active'.
+    mode : str, optional
+        either binary or size . The default is 'size'.
+    color : str, optional
+        color to use for binary plot. The default is None.
+    ax : plt.Axis, optional
+        axis to plot into. The default is None.
+    vmin : float, optional
+        minimum value for smallest dot cuttoff. The default is None.
+    vmax : str, optional
+        maximum value for dot cuttoff. The default is None.
+    cmap : str, optional
+        which colormap of matplotlib to use for dots. The default is 'Reds'.
+
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+
+    #  read MEGIN vectorview layout sensor positions
+    layout = mne.channels.read_layout('Vectorview-all')
+    positions = layout.pos[:,:2].T
+    assert len(values)==len(layout.ids), f'values must be a vector of {len(layout.ids)} floats but is {len(values)=}'
+
+    # create new axis or use current axis
+    if ax is None:
+        fig = plt.figure(figsize=[7,7],constrained_layout=False)
+        ax = plt.gca()
+    else:
+        fig = ax.figure
+    plot = None
+    ax.clear()
+
+    if mode=='size':
+        # plot as dots with varying size indicating the strength
+        if vmin is None: vmin = np.min(values)
+        if vmax is None: vmax = np.max(values)
+
+        scaling = (fig.get_size_inches()[-1]*fig.dpi)/20
+        sizes =  ((scaling*(values - np.min(values))/vmax))
+        plot = ax.scatter(*positions, s=sizes, c=values, vmin=vmin, vmax=vmax, cmap=cmap,
+                   alpha=0.75)
+
+    elif mode=='binary':
+        # plot as dots with either color or no color to indicate binary values
+        assert values.ndim==1
+        if color is None: color='red'
+        pos_true  = positions[:,values>0]
+        pos_false = positions[:,values==0]
+        ax.scatter(*pos_true, marker='o', color=color)
+        ax.scatter(*pos_false, marker='.', color='black')
+
+    # add lines for eyes and nose for orientation
+    ax.add_patch(plt.Circle((0.475, 0.475), 0.475, color='black', fill=False))
+    ax.add_patch(plt.Circle((0.25, 0.85), 0.04, color='black', fill=False))
+    ax.add_patch(plt.Circle((0.7, 0.85), 0.04, color='black', fill=False))
+    ax.add_patch(plt.Polygon([[0.425, 0.9], [0.475, 0.95], [0.525, 0.9]],fill=False, color='black'))
+    ax.set_axis_off()
+    ax.set_title(title)
+
+    return fig, ax
 
 
 
