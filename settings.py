@@ -35,6 +35,9 @@ fileending = ""
 classifier = "LogisticRegression"
 
 
+# loop through each participants number from 01 to 35
+_missing = [25, 28, 31]
+participants = [str(i).zfill(2) for i in range(1, 36) if not i in _missing]   #todo: set to 1
 
 
 #%%###################
@@ -70,6 +73,11 @@ elif username == 'simon' and host == 'kubuntu':  # simons home computer
     cachedir = f'{home}/Desktop/joblib/'
     datadir = None  # I don't have the data on my local computer
     epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+
+elif username == 'simon.kern' and host == '5cd320lfh8':  # simons work laptop
+    cachedir = f'{home}/Desktop/joblib/'
+    datadir = 'W:/group_klips/data/data/Emo-React-Prestudy/participant_data' 
+    epochs_folderpath = "W:/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/"
 
 # ENTER YOUR DIRS USING THE FOLLOWING TEMPLATE
 # elif username == 'your.username (lowercase)' and host=='yourhostmachine':

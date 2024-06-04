@@ -89,12 +89,24 @@ def load_exp_data(subj):
             'feedback_valence_key.rt', 'feedback_arousal_key.rt',
             'gif_shown_duration', 'button_pressed']
     df.drop(columns=[c for c in df.columns if not c in keep], inplace=True)
+    df.rename({'valence':'valence_binary'}, axis=1, inplace=True)    
 
     # remove redundant rows
     df = df.iloc[::4].reset_index(drop=True)
     df.index.name = 'trial_nr'
     assert (n_trials:=len(df))==144, f'more or less than 144 trials in file {n_trials=}'
-    return df
+    
+    # next load the original ratings
+    df_keltner = pd.read_csv(f'{settings.datadir}/CowenKeltnerEmotionalVideos.csv')
+    df_keltner.rename({'Filename':'mp4_filename'}, axis=1, inplace=True)    
+    # we are keeping just a few markers, however, there are potentially many more
+    keep = ['mp4_filename', 'valence', 'arousal', 'control', 'attention', 'approach']
+    df_keltner.drop(columns=[c for c in df_keltner.columns if not c in keep], inplace=True)
+    
+    # next merge the two data frames together based on 'mp4_filename'
+    df_merged = pd.merge(df, df_keltner, on='mp4_filename')
+    df_merged['participant_id'] = f'ERP-{subj:02d}'
+    return df_merged
 
 
 def make_fig(n_axs, n_bottom=2, no_ticks=False, suptitle='',
