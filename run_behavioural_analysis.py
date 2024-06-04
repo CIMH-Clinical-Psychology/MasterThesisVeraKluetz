@@ -74,3 +74,40 @@ axs[0].set_title('Overal valence ratings')
 sns.boxplot(data=df_data, x='valence_binary', y='emo_arousal.rating', ax=axs[1])
 axs[1].set_title('Overal arousal ratings')
 plt.tight_layout()
+
+
+#%% button presses
+
+fig, ax = plt.subplots(1, 1, figsize=[8, 8])
+sns.barplot(data=df_data, x='valence_binary', y='button_pressed', ax=ax)
+
+
+button_presses = []
+for subj, df_subj in df_data.groupby('participant_id'):
+    x = df_subj.groupby('valence_binary').mean(True).reset_index()
+    button_presses += [[x.button_pressed.values]]
+button_presses = np.squeeze(button_presses)
+
+fig, ax = plt.subplots(1, 1, figsize=[12, 2])
+g = ax.imshow(np.squeeze(button_presses).T)
+ax.set_xticks(np.arange(len(df_data.participant_id.unique())),df_data.participant_id.unique(), rotation=90)
+ax.set_yticklabels(['', 'negative', 'positive'])
+ax.set_ylabel('valence')
+ax_c = fig.colorbar(g)
+ax_c.set_label('ratio of\npressed buttons')
+
+fig, ax = plt.subplots(1, 1, figsize=[8, 8])
+diff = np.diff(button_presses, axis=-1).squeeze()
+df_tmp = pd.DataFrame({'Participant': settings.participants,
+                       'button bias': diff})
+df_tmp.sort_values('button bias', inplace=True)
+sns.scatterplot(df_tmp, x='Participant', y='button bias')
+plt.xticks(rotation=90)
+ax.set_ylabel('<-- more on negative GIFs    button press   more on positive GIFs-->', fontsize=12)
+ax.set_title('Button press bias')
+
+#%% button presses correlations
+
+fig, ax = plt.subplots(1, 1, figsize=[8, 8])
+sns.regplot(data=df_data, x='emo_arousal.rating', y='button_pressed')
+sns.stripplot(data=df_data, x='emo_arousal.rating', y='button_pressed', alpha=0.01)
