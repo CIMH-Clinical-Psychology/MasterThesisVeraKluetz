@@ -6,10 +6,6 @@ import settings
 import utils
 import functions
 import warnings
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -42,8 +38,10 @@ for p, participant in enumerate(
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    epochs, labels = utils.get_quadrant_data(participant)
-    if (epochs or labels) == None:
+    #epochs, labels = utils.get_quadrant_data(participant)
+    #epochs, labels = utils.get_valence_data(participant)
+    epochs, labels = utils.get_nonsubj_valence_data(participant)
+    if epochs is None or labels is None:
         continue
 
     # count epochs per participant
@@ -51,7 +49,7 @@ for p, participant in enumerate(
 
     # -------------------- loop through each timepoint to train and test the model---------
     # epochs.resample(100, n_jobs=-1, verbose='WARNING')  # for now resample to 100 to speed up computation
-    data_x = epochs.get_data()
+    data_x = epochs.get_data(copy=False)
 
     # if there are less than 20 epochs, skip this participant
     if len(data_x) < 20:
@@ -60,23 +58,12 @@ for p, participant in enumerate(
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
-    # could also use RandomForest, as it's more robust, should always work out of the box
-    # C parameter is important to set regularization, might overregularize else
-    if settings.classifier == "LogisticRegression":
-        clf = LogisticRegression(C=10, max_iter=1000, random_state=99)
-    elif settings.classifier == "RandomForest":
-        clf = RandomForestClassifier(n_estimators=100, random_state=99)
-    else:
-        print("No valid classifier was selected")
-        exit()
 
-    pipe = Pipeline(steps=[('scaler', StandardScaler()),
-                           ('classifier', clf)])
     # calculate all the timepoints in parallel massively speeds up calculation
-    n_splits = 5
+    n_splits = 3
     tqdm_loop = tqdm(range(len(epochs.times)), total=len(epochs.times), desc='calculating timepoints')
     try:
-        res = Parallel(-1)(delayed(functions.run_cv)(pipe, data_x[:, :, t],
+        res = Parallel(-1)(delayed(functions.run_cv)(settings.pipe, data_x[:, :, t],
                                                      labels, n_splits=n_splits) for t in tqdm_loop)
     except:
         warnings.warn(
@@ -99,16 +86,16 @@ for p, participant in enumerate(
     df_all = pd.concat([df_all, df_subj])
 
     # update figure with subject
-    functions.plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all)
-
+    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom, random_chance=0.2)
 
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"quadrant_decoding_{settings.classifier}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                             #f"quadrant_decoding_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                                f"emo_decoding_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
 fig.savefig(plot_filename)
 
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
 
 # create and save a plot that shows how many epochs there are per participant
-functions.plot_epochs_per_participant(participants, list_num_epochs)
+#functions.plot_epochs_per_participant(participants, list_num_epochs)
 

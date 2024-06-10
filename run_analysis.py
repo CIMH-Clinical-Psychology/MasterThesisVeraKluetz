@@ -11,8 +11,21 @@ import pandas as pd
 os.nice(1)  # make sure we're not clogging the CPU
 plt.ion()
 
+
+
+n_components_pca = 544
+bands_selection = ['delta', 'theta', 'alpha', 'beta']
+
+bands_dict = {'delta': [1, 4],
+                   'theta': [4, 8],
+                   'alpha': [8, 12],
+                   'beta': [13, 30]}
+
+
+
 # measure code execution
 start_time = time.time()
+
 
 # loop through each participants number from 01 to 35
 missing = [25, 28, 31]
@@ -27,44 +40,64 @@ for p, participant in enumerate(participants):
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    epochs, labels = utils.get_quadrant_data(participant)
+    #epochs, labels = utils.get_quadrant_data(participant)
+    epochs, labels = utils.get_valence_data(participant)
     if epochs is None or labels is None:
         continue
 
     # get sampling frequency
     sfreq=epochs.info['sfreq']
+    timepoints = epochs.times
     # extract data stored in epochs
-    data_x = epochs.get_data() #shape(144, 306, 3501)
+    data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
 
     # if there are less than 20 epochs, skip this participant
     if len(data_x) < 20:
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
-    windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.25) #todo: is step size to big? only 50% overlap
-    #shape(144, 306, 13, 500)
+    windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.2) #todo: is step size 0.25 to big? only 50% overlap
+    #shape(144, 306, 16, 500)
+
+    bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
+
+    windows_power = functions.get_bands_power(windows, sfreq, bands)
+    # shape (2,34,306,16)
+
+    for i in range(windows_power.shape[0]):
+        values= windows_power[i,:,:,:]
+        values = np.mean(values, axis=2)
+        values = np.mean(values, axis=0)
+        fig_head, ax_head = utils.plot_sensors(values)
+        filename = f"head_plot_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
+        plot_filename = os.path.join(settings.plot_folderpath, filename)
+        fig_head.savefig(plot_filename)
+
+    #uncomment this for saving a picture of alpha and or theta waves, note that is happens for every participant and overwrites the previous one
+    #for i in range(windows_power.shape[0]):
+    #    # just for the fun of it, plot e.g. mean alpha power over time for each channel
+    #    # there should be a streak of occipital channels showing higher alpha
+    #    fig_pow = plt.figure()
+    #    ax_pow = fig_pow.subplots(1,1)
+    #    ax_pow.imshow(np.mean(windows_power[i,:,:,:], axis=0), aspect='auto') #interpolation = none
+    #    ax_pow.set_xlabel('timestep of window')
+    #    ax_pow.set_ylabel('channel number')
+    #    filename = f"Feature_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
+    #    plot_filename = os.path.join(settings.plot_folderpath, filename)
+    #    fig_pow.savefig(plot_filename)
+        #fig_pow.show()
 
 
-    #todo: 1. extract beta, gamma, delta, theta values
-    # 2. add them all on the channel dimension, so that the window with x features has shape (144, x*306, 13, 500)
-    # 3. apply PCA for dimensionality reduction, see how many features explain how much of the variance to determine the right amount of components
-    # 4. normal PCA works with 2D arrays, so take 306*(144*13)
-    #np.hstack([144, 306, 13].T) -> 306x(144x13).T
-    #PCA(200).fit?transform([2200x1555])
-
-    windows_power = functions.get_windows_power(windows, sfreq)
-
-    # just for the fun of it, plot mean alpha power over time for each channel
-    # there should be a streak of occipital channels showing higher alpha
-    plt.imshow(np.mean(windows_power, axis=1).T, aspect='auto') #interpolation = none
-    plt.xlabel('timestep of window')
-    plt.ylabel('channel number')
-    filename = f"Feature_alpha_power_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
-    plot_filename = os.path.join(settings.plot_folderpath, filename)
-    plt.savefig(plot_filename)
+    windows_power = functions.reshape_windows_power(windows_power)
+    # shape (34, 2 * 306, 16)
 
 
-    df_subj = functions.decode_features(windows_power, labels, participant)
+    #todo: apply PCA for dimensionality reduction, see how many features explain how much of the variance to determine the right amount of components
+    windows_power = functions.reshape_windows_power_for_pca(windows_power)
+    pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
+    pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
+
+    df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints, n_splits=3)
     if df_subj is None:
         continue
 
@@ -72,12 +105,14 @@ for p, participant in enumerate(participants):
     df_all = pd.concat([df_all, df_subj])
 
     # update figure with subject
-    functions.plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all)
+    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom, 0.2)
 
 
-# todo: take alpha out of hard coded description
+
+bands_string = result = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_alpha{settings.classifier}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
+
 fig.savefig(plot_filename)
 
 end_time = time.time()

@@ -9,14 +9,9 @@ This file contains all code to run different preprocessings
 """
 import os
 import functions
-import settings
 import time
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import warnings
-import seaborn as sns
-from joblib import Memory
+
 
 os.nice(1)
 
@@ -24,7 +19,7 @@ os.nice(1)
 start_time = time.time()
 
 # set tmin and tmax for epoch lengths
-tmin, tmax = -2.5, 1
+tmin, tmax = -4, 0
 
 # set event IDs
 event_id = {'trigger_preimage': 10,
@@ -36,7 +31,7 @@ event_id = {'trigger_preimage': 10,
             'trigger_flanker_start': 104}
 
 # select events with a certain trigger
-event_id_selection = event_id['trigger_preimage']
+event_id_selection = event_id['trigger_gif_offset']
 
 # ignore unnecessary warnings
 functions.ignore_warnings()
@@ -49,7 +44,7 @@ functions.loop_through_participants(tmin,
                                     lowpass=50,
                                     notch=np.arange(50, 251, 50),
                                     picks='meg',
-                                    fileending=None,
+                                    fileending="",
                                     autoreject=True,
                                     ica_ecg=True,
                                     ica_eog=True)
@@ -81,7 +76,7 @@ functions.loop_through_participants(tmin,
 #                                    ica_eog = False)
 #
 # take meg data and process as minimally as possible
-# functions.loop_through_participants(tmin,
+#functions.loop_through_participants(tmin,
 #                                    tmax,
 #                                    event_id_selection,
 #                                    highpass=0.1,

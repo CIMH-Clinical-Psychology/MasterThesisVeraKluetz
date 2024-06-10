@@ -9,6 +9,10 @@ import os
 import getpass
 import platform
 import warnings
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 #%%##########
 # SETTINGS
 #############
@@ -25,14 +29,27 @@ plot_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Plots/")
 #  - if you are before preprocessing, choose the parameters as you like
 #  - if you want to use already prepocessed data, take the following parameters from the stored filenames you want to use!
 
-event_id_selection = 10
-tmin = -2.5
-tmax = 1
+event_id_selection = 30
+#event_id = {'trigger_preimage': 10,
+#            'trigger_gif_onset': 20,
+#            'trigger_gif_offset': 30,
+#            'trigger_fixation': 99,
+#            'trigger_valence_start': 101,
+#            'trigger_arousal_start': 102,
+#            'trigger_flanker_start': 104}
+tmin = -4
+tmax = 0
 # for the fileending, choose between the following:
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
-fileending = ""
-# either choose "RandomForest" or "LogisticRegression" as classifier
-classifier = "LogisticRegression"
+fileending = "_minimalPreprocessing"
+
+# --- select classifier ----
+clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else
+#clf = RandomForestClassifier(n_estimators=100, random_state=99) # could also use RandomForest, as it's more robust, should always work out of the box
+classifier_name = clf.__class__.__name__
+
+pipe = Pipeline(steps=[('scaler', StandardScaler()),
+                           ('classifier', clf)])
 
 
 
