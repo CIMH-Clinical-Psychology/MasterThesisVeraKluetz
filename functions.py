@@ -8,6 +8,7 @@ This file contains all functions
 @author: vera klütz
 """
 import os
+import sys
 import settings
 import numpy as np
 import pandas as pd
@@ -24,8 +25,8 @@ from tqdm import tqdm
 import scipy
 
 
-
-os.nice(1)
+if sys.platform!='win32': # does not work on windows
+    os.nice(1)
 
 # define cached functions for faster execution
 mem = Memory(settings.cachedir if settings.caching else None)  # only enable caching if wanted
