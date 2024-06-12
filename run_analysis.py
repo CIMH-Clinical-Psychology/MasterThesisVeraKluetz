@@ -7,11 +7,11 @@ import numpy as np
 import functions
 import pandas as pd
 
-
 os.nice(1)  # make sure we're not clogging the CPU
 plt.ion()
 
-
+# ignore unnecessary warnings
+functions.ignore_warnings()
 
 n_components_pca = 544
 bands_selection = ['delta', 'theta', 'alpha', 'beta']
@@ -22,10 +22,8 @@ bands_dict = {'delta': [1, 4],
                    'beta': [13, 30]}
 
 
-
 # measure code execution
 start_time = time.time()
-
 
 # loop through each participants number from 01 to 35
 missing = [25, 28, 31]
@@ -64,14 +62,16 @@ for p, participant in enumerate(participants):
     windows_power = functions.get_bands_power(windows, sfreq, bands)
     # shape (2,34,306,16)
 
-    for i in range(windows_power.shape[0]):
-        values= windows_power[i,:,:,:]
-        values = np.mean(values, axis=2)
-        values = np.mean(values, axis=0)
-        fig_head, ax_head = utils.plot_sensors(values)
-        filename = f"head_plot_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
-        plot_filename = os.path.join(settings.plot_folderpath, filename)
-        fig_head.savefig(plot_filename)
+    # uncomment if you want to see pictures
+    ## plot sensor values
+    #for i in range(windows_power.shape[0]):
+    #    values= windows_power[i,:,:,:]
+    #    values = np.mean(values, axis=2)
+    #    values = np.mean(values, axis=0)
+    #    fig_head, ax_head = utils.plot_sensors(values)
+    #    filename = f"head_plot_{bands_selection[i]}_power_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}.png"
+    #    plot_filename = os.path.join(settings.plot_folderpath, filename)
+    #    fig_head.savefig(plot_filename)
 
     #uncomment this for saving a picture of alpha and or theta waves, note that is happens for every participant and overwrites the previous one
     #for i in range(windows_power.shape[0]):
@@ -87,15 +87,28 @@ for p, participant in enumerate(participants):
     #    fig_pow.savefig(plot_filename)
         #fig_pow.show()
 
-
-    windows_power = functions.reshape_windows_power(windows_power)
+    # reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)
+    n_bands, n_epochs, n_channels, n_windows = windows_power.shape
+    windows_power = windows_power.transpose(1, 0, 2, 3).reshape(n_epochs, n_bands * n_channels, n_windows)
     # shape (34, 2 * 306, 16)
 
-
     #todo: apply PCA for dimensionality reduction, see how many features explain how much of the variance to determine the right amount of components
-    windows_power = functions.reshape_windows_power_for_pca(windows_power)
+
+
+    n_bands_channels = windows_power.shape[1]
+    # reshape (epochs, bands*channels, windows) to (epochs*windows, bands*channels)
+    windows_power = windows_power.transpose(0, 2, 1).reshape(n_epochs * n_windows, n_bands_channels)
+    #windows_power = functions.reshape_windows_power(windows_power, [1, 2], [-1, 2])
+
+
     pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
-    pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
+
+    #pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
+    # reshape (epochs*windows, bands*channels) to (epochs, bands*channels, windows)
+    n_epochs_windows, n_bands_channels = pca_windows_power.shape
+    #n_epochs = int(n_epochs_windows / n_windows)
+    pca_windows_power = pca_windows_power.reshape(n_epochs, n_windows, n_bands_channels)
+    pca_windows_power = pca_windows_power.transpose(0, 2, 1)
 
     df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints, n_splits=3)
     if df_subj is None:

@@ -79,6 +79,9 @@ def ignore_warnings():
     warnings.filterwarnings("ignore",
                             message=".*does not conform to MNE naming conventions. All raw files should end with raw.fif, raw_sss.fif, raw_tsss.fif*",
                             category=RuntimeWarning, module="mne")
+    warnings.filterwarnings("ignore",
+                            message=".*use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead*",
+                            category=FutureWarning, module="seaborn")
 
 
 def valid_filename(string):
@@ -444,15 +447,18 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     return df_subj
 
 
-def reshape_windows_power(windows_power):
-    '''reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)'''
-    # Get the original shape
-    bands, epochs, channels, windows = windows_power.shape
-
-    # Reshape to the desired shape
-    reshaped_windows_power = windows_power.transpose(1, 0, 2, 3).reshape(epochs, bands * channels, windows)
-
-    return reshaped_windows_power
+#def reshape_windows_power(windows_power, swap, reshape_param):
+#    reshaped_windows_power = windows_power.swapaxes(*swap).reshape([windows_power.shape[d] if d!=-1 else -1 for d in reshape_param])
+#
+#
+#    #'''reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)'''
+#    ## Get the original shape
+#    #n_bands, n_epochs, n_channels, n_windows = windows_power.shape
+#
+#    ## Reshape to the desired shape
+#    #reshaped_windows_power = windows_power.transpose(1, 0, 2, 3).reshape(n_epochs, n_bands * n_channels, n_windows)
+#
+#    return reshaped_windows_power
 
 
 def pca_fit_transform(data, n_components=200):
@@ -461,22 +467,24 @@ def pca_fit_transform(data, n_components=200):
     return data
 
 
-def reshape_windows_power_for_pca(windows_power):
-    '''input: shape(epochs, bands*channels, windows)
-    output: shape(epochs*windows, bands*channels)
-    '''
-    epochs, bands_channels, windows = windows_power.shape
-    reshaped_windows_power = windows_power.transpose(0,2,1).reshape(epochs * windows, bands_channels)
-    return reshaped_windows_power
+#def reshape_windows_power_for_pca(windows_power):
+#    '''input: shape(epochs, bands*channels, windows)
+#    output: shape(epochs*windows, bands*channels)
+#    '''
+#
+#    n_epochs, n_bands_channels, n_windows = windows_power.shape
+#    reshaped_windows_power = windows_power.transpose(0,2,1).reshape(n_epochs * n_windows, n_bands_channels)
+#
+#    return reshaped_windows_power
 
 
-def reshape_windows_power_after_pca(pca_windows_power, n_windows):
-    '''input: windows_power with shape (epochs*windows, bands*channels)
-    output: shape(epochs, bands*channels, windows)'''
-    epochs_windows, bands_channels = pca_windows_power.shape
-    epochs = int(epochs_windows/n_windows)
-
-    #windows_power = pca_windows_power.reshape(epochs, bands_channels, n_windows)
-    windows_power = pca_windows_power.reshape(epochs, n_windows, bands_channels).transpose(0, 2, 1)
-
-    return windows_power
+#def reshape_windows_power_after_pca(pca_windows_power, n_windows):
+#    '''input: windows_power with shape (epochs*windows, bands*channels)
+#    output: shape(epochs, bands*channels, windows)'''
+#    n_epochs_windows, n_bands_channels = pca_windows_power.shape
+#    n_epochs = int(n_epochs_windows/n_windows)
+#
+#    #windows_power = pca_windows_power.reshape(epochs, bands_channels, n_windows)
+#    windows_power = pca_windows_power.reshape(n_epochs, n_windows, n_bands_channels).transpose(0, 2, 1)
+#
+#    return windows_power
