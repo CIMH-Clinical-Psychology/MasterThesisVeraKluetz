@@ -13,7 +13,8 @@ in csv 306 MEG Kanäle + 3 (condition, epoch, time)
     
 - später: als Trigger gif offset nehmen, tmin = -2 sek (oder je nachdem wie die durchschnittliche/max Länge ist) tmax = 0
 
-
+- overwriting existing file is printed (and done??) two times in the functions.py loop_through_participants function called from: run_preprocessing.py. Is there a problem resulting from that? Why do I had to put flag=writeable to false in order for there not to be an error message?
+- 
 ## Fragen:
 random forest: Wleche Parameter noch zusätzlich einstellen?
 
