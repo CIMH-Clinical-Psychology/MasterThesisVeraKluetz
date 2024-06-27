@@ -41,7 +41,10 @@ tmin = -4
 tmax = 0
 # for the fileending, choose between the following:
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
-fileending = "_minimalPreprocessing"
+fileending = ""
+
+target = "subj_valence"
+classes = "binary"
 
 # --- select classifier ----
 clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else

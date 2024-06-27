@@ -3,9 +3,9 @@ import time
 import settings
 import utils
 import matplotlib.pyplot as plt
-import numpy as np
 import functions
 import pandas as pd
+import numpy as np
 
 os.nice(1)  # make sure we're not clogging the CPU
 plt.ion()
@@ -13,7 +13,8 @@ plt.ion()
 # ignore unnecessary warnings
 functions.ignore_warnings()
 
-n_components_pca = 544
+b_remove_buttons_not_pressed = True
+n_components_pca = 100
 bands_selection = ['delta', 'theta', 'alpha', 'beta']
 
 bands_dict = {'delta': [1, 4],
@@ -38,10 +39,16 @@ for p, participant in enumerate(participants):
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    #epochs, labels = utils.get_quadrant_data(participant)
-    epochs, labels = utils.get_valence_data(participant)
+    if settings.target == "subj_valence":
+        #epochs, labels = utils.get_quadrant_data(participant)
+        epochs, labels, buttons = utils.get_valence_data(participant, b_remove_buttons_not_pressed)
+    else:
+        print('please set a valid target in the settings.py file')
+        exit()
+
     if epochs is None or labels is None:
         continue
+
 
     # get sampling frequency
     sfreq=epochs.info['sfreq']
@@ -49,14 +56,29 @@ for p, participant in enumerate(participants):
     # extract data stored in epochs
     data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
 
+
+    # remove trials in which no button was pressed when emotion peaked
+    if b_remove_buttons_not_pressed:
+        data_x, labels = functions.remove_button_not_pressed(data_x, labels, buttons)
+
+
+    if settings.classes == "binary":
+        labels = np.mean(labels) <  labels
+
+
     # if there are less than 20 epochs, skip this participant
     if len(data_x) < 20:
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
+    if any([c<5 for c in np.bincount(labels)]):
+        axs[p].set_title(f'{participant=}')
+        axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')
+        continue  # some participants have very few usable epochs     #shape(144, 306, 16, 500)
+
     windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.2) #todo: is step size 0.25 to big? only 50% overlap
     #shape(144, 306, 16, 500)
-
+    
     bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
 
     windows_power = functions.get_bands_power(windows, sfreq, bands)
@@ -87,30 +109,28 @@ for p, participant in enumerate(participants):
     #    fig_pow.savefig(plot_filename)
         #fig_pow.show()
 
+
+    # ------------ reshape operations for PCA -----------------
     # reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)
     n_bands, n_epochs, n_channels, n_windows = windows_power.shape
     windows_power = windows_power.transpose(1, 0, 2, 3).reshape(n_epochs, n_bands * n_channels, n_windows)
     # shape (34, 2 * 306, 16)
-
-    #todo: apply PCA for dimensionality reduction, see how many features explain how much of the variance to determine the right amount of components
-
-
+    #todo: PCA see how many features explain how much of the variance to determine the right amount of components
     n_bands_channels = windows_power.shape[1]
+
     # reshape (epochs, bands*channels, windows) to (epochs*windows, bands*channels)
     windows_power = windows_power.transpose(0, 2, 1).reshape(n_epochs * n_windows, n_bands_channels)
-    #windows_power = functions.reshape_windows_power(windows_power, [1, 2], [-1, 2])
 
-
+    # apply PCA
     pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
 
-    #pca_windows_power = functions.reshape_windows_power_after_pca(pca_windows_power, windows.shape[2])
-    # reshape (epochs*windows, bands*channels) to (epochs, bands*channels, windows)
+    # reshape from (epochs*windows, bands*channels) to
     n_epochs_windows, n_bands_channels = pca_windows_power.shape
-    #n_epochs = int(n_epochs_windows / n_windows)
     pca_windows_power = pca_windows_power.reshape(n_epochs, n_windows, n_bands_channels)
     pca_windows_power = pca_windows_power.transpose(0, 2, 1)
 
-    df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints, n_splits=3)
+    # decode features
+    df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints, n_splits=5)
     if df_subj is None:
         continue
 
@@ -124,7 +144,7 @@ for p, participant in enumerate(participants):
 
 bands_string = result = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_{bands_string}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
 
 fig.savefig(plot_filename)
 

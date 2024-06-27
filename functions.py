@@ -217,6 +217,10 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
                 )
 
         # --------------------- save epochs ---------------------------------------
+        if epochs_meg.times.flags['WRITEABLE']:
+            # Set times array to read-only
+            epochs_meg.times.setflags(write=False)
+
         print('###  saving epochs')
         filename_epoch = f'{participant=}_{event_id_selection=}_{tmin=}_{tmax=}{fileending}'
         filename_epoch = valid_filename(filename_epoch)
@@ -254,25 +258,31 @@ def run_cv(clf, data_x_t, gif_pos, n_splits=5):
     accs : list
         list of accuracies, for each fold one.
     """
+    warnings.filterwarnings("error", category=UserWarning)
 
     cv = StratifiedKFold(n_splits=n_splits)
     accs = []
     # Loop over each fold
-    for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
-        x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
-        y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
+    try:
+        for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
+            x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
+            y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
 
-        # clf can also be a pipe object
-        clf.fit(x_train, y_train)
+            # clf can also be a pipe object
+            clf.fit(x_train, y_train)
 
-        #model = StandardScaler().fit(x_train, y_train)
+            #model = StandardScaler().fit(x_train, y_train)
 
-        preds = clf.predict(x_test)
-        #preds = model.predict(x_test)
+            preds = clf.predict(x_test)
+            #preds = model.predict(x_test)
 
-        # accuracy = mean of binary predictions
-        acc = np.mean((preds == y_test))
-        accs.append(acc)
+            # accuracy = mean of binary predictions
+            acc = np.mean((preds == y_test))
+            accs.append(acc)
+    except UserWarning as e:
+        if "The least populated class in y has only" in str(e):
+            print(f"Skipping participant due to insufficient class members. {e} {y_test=} {y_train=}")
+            return None
     return accs
 
 
@@ -408,25 +418,27 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy, split
     '''
 
-    print(' Decoding starts')
+    print('Decoding starts')
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
     # Access and change the random_state parameter for the new classifier
     pipe.set_params(classifier__random_state=99)
 
-    #
     # calculate all the timepoints in parallel massively speeds up calculation
     tqdm_loop = tqdm(np.arange(windows_power.shape[2]), desc='calculating timepoints')
 
-    #res=[]
+    res=[]
     #for n_window in range(13):
     #    res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
     try:
         res = Parallel(n_jobs)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
-    except:
+        # res will return a list for each job. If there are too few class members in a class, None will be returned
+        if None in res:
+            return None
+    except Exception as e:
         warnings.warn(
-            f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
+            f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton. {e}")
         return None
 
 
@@ -466,6 +478,16 @@ def pca_fit_transform(data, n_components=200):
     pca = PCA(n_components, random_state=99)
     data = pca.fit_transform(data)
     return data
+
+
+def remove_button_not_pressed(data_x, labels, buttons):
+    idx_to_remove = []
+    for i in range(len(labels)):
+        if buttons[i] == False:
+            idx_to_remove.append(i)
+    data_x = np.delete(data_x, idx_to_remove, axis=0)
+    labels = np.delete(labels, idx_to_remove)
+    return data_x, labels
 
 
 #def reshape_windows_power_for_pca(windows_power):
