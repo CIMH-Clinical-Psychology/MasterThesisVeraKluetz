@@ -45,6 +45,7 @@ fileending = ""
 
 target = "subj_valence"
 classes = "binary"
+output_metric = "f1_score" # alternatively "accuracy"
 
 # --- select classifier ----
 clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else

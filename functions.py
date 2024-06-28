@@ -21,8 +21,10 @@ import autoreject
 from joblib import Memory
 from sklearn.model_selection import StratifiedKFold
 from sklearn.decomposition import PCA
+from sklearn.metrics import f1_score
 from tqdm import tqdm
 import scipy
+
 
 
 if sys.platform!='win32': # does not work on windows
@@ -238,7 +240,7 @@ def read_epoch_cached_fif(full_filename):
     return epochs
 
 
-def run_cv(clf, data_x_t, gif_pos, n_splits=5):
+def run_cv(clf, data_x_t, labels, n_splits=5):
     """outsourced crossvalidation function to run on a single timepoint,
     this way the function can be parallelized
 
@@ -248,25 +250,25 @@ def run_cv(clf, data_x_t, gif_pos, n_splits=5):
         any object having a .fit and a .predict function (Pipeline, Classifier).
     data_x_t : np.ndarray
         numpy array with shape [examples, features].
-    gif_pos : np.ndarray, list
+    labels : np.ndarray, list
         list or array of target variables.
     n_splits : int, optional
         number of splits. The default is 5.
 
     Returns
     -------
-    accs : list
-        list of accuracies, for each fold one.
+    accs or f1s : list
+        list of accuracies or f1 scores, for each fold one.
     """
     warnings.filterwarnings("error", category=UserWarning)
 
     cv = StratifiedKFold(n_splits=n_splits)
-    accs = []
+    accs_f1s = []
     # Loop over each fold
     try:
-        for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
+        for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, labels)):
             x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
-            y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
+            y_train, y_test = labels[train_idx], labels[test_idx]
 
             # clf can also be a pipe object
             clf.fit(x_train, y_train)
@@ -276,14 +278,21 @@ def run_cv(clf, data_x_t, gif_pos, n_splits=5):
             preds = clf.predict(x_test)
             #preds = model.predict(x_test)
 
-            # accuracy = mean of binary predictions
-            acc = np.mean((preds == y_test))
-            accs.append(acc)
+            if settings.output_metric == 'f1_score':
+                f1 = f1_score(y_test, preds)
+                accs_f1s.append(f1)
+            else:
+                # accuracy = mean of binary predictions
+                acc = np.mean((preds == y_test))
+                accs_f1s.append(acc)
+
+
+
     except UserWarning as e:
         if "The least populated class in y has only" in str(e):
             print(f"Skipping participant due to insufficient class members. {e} {y_test=} {y_train=}")
             return None
-    return accs
+    return accs_f1s
 
 
 
@@ -305,12 +314,12 @@ def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=
     df_subj = df_all[df_all.participant==participant]
     times = df_subj.timepoint
 
-    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
+    sns.lineplot(data=df_subj, x='timepoint', y=settings.output_metric, ax=ax)
     ax.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
     ax.set_title(f'{participant=}')
     # then plot a summary of all participant into the big plot
     ax_bottom.clear()  # clear axis from previous line
-    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
+    sns.lineplot(data=df_all, x='timepoint', y=settings.output_metric, ax=ax_bottom)
     ax_bottom.hlines(random_chance, min(times), max(times), linestyle='--',
                      color='gray')  # draw random chance line
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
@@ -322,12 +331,12 @@ def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=
 #    '''plots a subject into the small axis and then updates the summary of all participants in the lower right plot'''
 #    # first plot this participant into the small axis
 #    ax = axs[p]  # select axis of this participant
-#    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
+#    sns.lineplot(data=df_subj, x='timepoint', y=settings.output_metric, ax=ax)
 #    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
 #    ax.set_title(f'{participant=}')
 #    # then plot a summary of all participant into the big plot
 #    ax_bottom.clear()  # clear axis from previous line
-#    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
+#    sns.lineplot(data=df_all, x='timepoint', y=settings.output_metric, ax=ax_bottom)
 #    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--',
 #                     color='gray')  # draw random chance line
 #    ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
@@ -415,7 +424,7 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     labels: 1D with the target values
     participant: string with participant number
 
-    returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy, split
+    returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy/f1 score, split
     '''
 
     print('Decoding starts')
@@ -447,13 +456,13 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     timepoints = np.array(timepoints, dtype=float)
     # save result of the folds in a dataframe.
     # the unravelling of the res object can be a bit confusing.
-    # res is a list, each entry has 5 accuracy values, for each fold one.
+    # res is a list, each entry has 5 accuracy/f1 score values, for each fold one.
     # we need to now make sure that in the dataframe each row has one
-    # accuracy value and it's assigned timepoint, and also an indicator of the
+    # accuracy/ f1 score value and it's assigned timepoint, and also an indicator of the
     # fold number
     df_subj = pd.DataFrame({'participant': participant,
                             'timepoint': np.repeat(timepoints, n_splits),
-                            'accuracy': np.ravel(res),
+                            settings.output_metric: np.ravel(res),
                             'split': list(range(n_splits)) * len(res)
                             })
 

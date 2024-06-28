@@ -84,8 +84,7 @@ for p, participant in enumerate(participants):
     windows_power = functions.get_bands_power(windows, sfreq, bands)
     # shape (2,34,306,16)
 
-    # uncomment if you want to see pictures
-    ## plot sensor values
+    # uncomment if you want to see a plot of sensor values
     #for i in range(windows_power.shape[0]):
     #    values= windows_power[i,:,:,:]
     #    values = np.mean(values, axis=2)
@@ -129,22 +128,23 @@ for p, participant in enumerate(participants):
     pca_windows_power = pca_windows_power.reshape(n_epochs, n_windows, n_bands_channels)
     pca_windows_power = pca_windows_power.transpose(0, 2, 1)
 
-    # decode features
+    # -------------- decode features------------------------------
     df_subj = functions.decode_features(pca_windows_power, labels, participant, settings.pipe, timepoints, n_splits=5)
     if df_subj is None:
         continue
+
 
     # append to dataframe holding all data
     df_all = pd.concat([df_all, df_subj])
 
     # update figure with subject
-    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom, 0.2)
+    functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom, 0.5)
 
 
 
 bands_string = result = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.output_metric}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
 
 fig.savefig(plot_filename)
 
@@ -152,32 +152,4 @@ end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.3f} seconds")
 
 
-# Run_analysis
-#
-#
-#
-# for participant in paticipants
-#     data = get_your_data(participant)
-#     feat = get_alpha(data)
-#     ... do classification
-#     accuracy = classify(data, feats)
-#     plot_data(accuracy)
-#
-#
-#
-#
-# quadrant_decoding.py
-#
-# feat = get_alpha(epochs)
-#     epochs, labels = get_gif_onset_data(target='valence')
-#     load_epochs(subj, event_id, tmin, tmax, )
-#
-#
-#
-# run_analysis.py
-#
-# def get_brain_bands()
-# def get_alpha(data, sf):
-#     get_fft(data, sf)
-#     alpha =
-#     returns alpha value per channel for this window
+
