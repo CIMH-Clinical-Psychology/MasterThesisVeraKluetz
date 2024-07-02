@@ -13,6 +13,9 @@ plt.ion()
 # ignore unnecessary warnings
 functions.ignore_warnings()
 
+window_size = 0.5
+step_size = 0.2 #todo: is step size 0.25 to big? only 50% overlap
+
 b_remove_buttons_not_pressed = True
 n_components_pca = 100
 bands_selection = ['delta', 'theta', 'alpha', 'beta']
@@ -39,12 +42,8 @@ for p, participant in enumerate(participants):
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    if settings.target == "subj_valence":
-        #epochs, labels = utils.get_quadrant_data(participant)
-        epochs, labels, buttons = utils.get_valence_data(participant, b_remove_buttons_not_pressed)
-    else:
-        print('please set a valid target in the settings.py file')
-        exit()
+
+    epochs, labels, buttons = utils.get_target_data(participant, b_remove_buttons_not_pressed)
 
     if epochs is None or labels is None:
         continue
@@ -76,7 +75,7 @@ for p, participant in enumerate(participants):
         axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')
         continue  # some participants have very few usable epochs     #shape(144, 306, 16, 500)
 
-    windows = utils.extract_windows(data_x, sfreq, win_size=0.5, step_size=0.2) #todo: is step size 0.25 to big? only 50% overlap
+    windows = utils.extract_windows(data_x, sfreq, win_size=window_size, step_size=step_size)
     #shape(144, 306, 16, 500)
     
     bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
@@ -144,7 +143,7 @@ for p, participant in enumerate(participants):
 
 bands_string = result = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.output_metric}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_pca{n_components_pca}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.output_metric}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_winSize{window_size}_stepSize{step_size}_pca{n_components_pca}{settings.fileending}.png")
 
 fig.savefig(plot_filename)
 

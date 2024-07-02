@@ -43,8 +43,8 @@ tmax = 0
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
 fileending = ""
 
-target = "subj_valence"
-classes = "binary"
+target = "subj_valence" # "subj_arousal" "obj_valence"
+classes = "binary" #"origClasses"
 output_metric = "f1_score" # alternatively "accuracy"
 
 # --- select classifier ----

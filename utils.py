@@ -40,7 +40,7 @@ def load_exp_data(subj):
     df : pd.DataFrame
         dataframe with the following columns:
            'mp4_filename',                  GIF filename
-           'valence',                       mean valence rating of Keltner db
+           'valence_binary',                mean valence rating of Keltner db
            'emotion',                       emotion with highest mean rating
            'gif_position',                  position on screen of GIF
            'emo_arousal.rating',            subjective arousal rating
@@ -349,21 +349,21 @@ def get_quadrant_data(participant, tmin=-3, tmax=1):
 
 
 
-def get_valence_data(participant, button_press_output = True):
-    ''' reads the epochs and also loads the information which subjective valence rating from 1-5 was given. It takes
-    into account how many epochs there could possibly be and only takes the
+def get_target_data(participant, button_press_output = True):
+    ''' reads the epochs and also loads the information which target, e.g. subjective valence rating from 1-5 was given. It takes
+    into account how many epochs there could possibly be and only takes the e.g.
     valence rating of those epochs that are actually stored after preprocessing.
     Input: participant number in 2-digit format 01,02,...
-    Returns: epochs read from fif file; and valence ratings as np.array'''
+    Returns: epochs read from fif file; and target e.g. valence ratings as np.array'''
 
     # read the epochs
     epochs = load_epoch(participant)
 
-    # read the "solution"/target, in which quadrant it was shown
+    # read the target
     try:
         df_subj = load_exp_data(participant)
     except Exception:
-        warnings.warn(f"Valence: There is no data for participant number {participant}. \n "
+        warnings.warn(f"Target (Arousal/Valence): There is no data for participant number {participant}. \n "
                       f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
                       f"Make sure that the file is not currently opened by another program!!\n "
                       f"Proceeding with next participant.\n")
@@ -377,8 +377,16 @@ def get_valence_data(participant, button_press_output = True):
     if(button_press_output ==True):
         df_button = df_subj['button_pressed']
 
-
-    df_subj = df_subj['emo_valence.rating']
+    # add target to df
+    if settings.target == "subj_arousal":
+        df_subj = df_subj['emo_arousal.rating']
+    elif settings.target == "subj_valence":
+        df_subj = df_subj['emo_valence.rating']
+    elif settings.target == "obj_valence":
+        df_subj = df_subj['valence_binary']
+    else:
+       print('please set a valid target in the settings.py file')
+       exit()
 
     # create a np. array containing all theoretically possible epoch indexes
     lowest_epoch_idx = epochs.selection[0]
@@ -389,71 +397,30 @@ def get_valence_data(participant, button_press_output = True):
 
     # only select the valence targets and the button press entries, that belong to the epochs that have not been rejected
     button_pressed = []
-    valence_rating_str = []
+    target_rating_str = []
     for i in np.arange(144):
         if all_poss_epoch_idx[i] in true_epoch_idx:
             #if i in df_subj.index: #keys():
-            valence_rating_str.append(df_subj[i])
+            target_rating_str.append(df_subj[i])
             button_pressed.append(df_button[i])
 
 
     # convert letter to number
-    valence_rating_num = [int(i) for i in valence_rating_str]
-    valence_rating = np.array(valence_rating_num)
+    if (settings.target != "obj_valence"):
+        target_rating_num = [int(i) for i in target_rating_str]
+    else:
+        char_to_num = {'pos': 0, 'neg': 1}
+        target_rating_num = [char_to_num[i] for i in target_rating_str]
+
+    target_rating = np.array(target_rating_num)
     # todo: Does the char to num even make a difference?
 
-    # if valence rating has no values, set it to None so that it will be handled/skipped in the calling function
-    if valence_rating.any() == False:
-        valence_rating = None
 
-    return epochs, valence_rating, button_pressed
+    # if target (valence/arousal) rating has no values, set it to None so that it will be handled/skipped in the calling function
+    if target_rating.any() == False:
+        target_rating = None
 
-  
-
-def get_nonsubj_valence_data(participant):
-    ''' reads the epochs and also loads the information which mean valence rating was given for this picture, positive or negative. It then converts this information into
-    numbers (pos becomes 0, neg becomes 1). It takes into account how many epochs there could possibly be and only takes the
-    gif position of those epochs that are actually stored after preprocessing.
-    Input: participant number in 2-digit format 01,02,...
-    Returns: epochs read from fif file; and mean valence rating as np.array'''
-
-    # read the epochs
-    epochs = load_epoch(participant)
-
-    # read the "solution"/target, in which quadrant it was shown
-    try:
-        df_subj = load_exp_data(participant)
-    except:
-        warnings.warn(f"Mean Valence: There is no information for participant number {participant}. \n "
-              f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
-              f"Make sure that the file is not currently opened by another program!!\n "
-              f"Proceeding with next participant.\n")
-        return epochs, None
-
-    # -------------------- create target containing the gif positions --------------
-    # only select the targets, that belong to the epochs that have not been rejected
-    df_subj_gif = df_subj['valence']
-    # get_quadrants(subjektname, epochs)
-    # all_poss_epoch_idx = np.arange(start=2, stop=144 * 10, step=10)
-    lowest_epoch_idx = epochs.selection[0]
-    lowest_possible_epoch_idx = lowest_epoch_idx % 10
-    all_poss_epoch_idx = np.arange(start=lowest_possible_epoch_idx, stop=144 * 10, step=10)
-
-    true_epoch_idx = epochs.selection
-
-    valence_rating = []
-    for i in np.arange(144):
-        if all_poss_epoch_idx[i] in true_epoch_idx:
-            valence_rating.append(df_subj_gif[i])
-
-    # convert letter to number
-    char_to_num = {'pos': 0, 'neg': 1}
-    # char_to_num = {'A': 0, 'B': 0.33, 'C': 0.66, 'D': 1}
-    valence_int = [char_to_num[i] for i in valence_rating]
-    valence_int = np.array(valence_int)
-    # todo: Does the char to num even make a difference?
-
-    return epochs, valence_int
+    return epochs, target_rating, button_pressed
 
 
 
