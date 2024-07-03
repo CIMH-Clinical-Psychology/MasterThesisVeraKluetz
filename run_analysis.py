@@ -1,5 +1,8 @@
 import os
 import time
+
+import mne
+
 import settings
 import utils
 import matplotlib.pyplot as plt
@@ -14,7 +17,7 @@ plt.ion()
 functions.ignore_warnings()
 
 window_size = 0.5
-step_size = 0.2 #todo: is step size 0.25 to big? only 50% overlap
+step_size = 0.1 #todo: is step size 0.25 to big? only 50% overlap
 
 b_remove_buttons_not_pressed = True
 n_components_pca = 100
@@ -43,17 +46,32 @@ for p, participant in enumerate(participants):
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
 
-    epochs, labels, buttons = utils.get_target_data(participant, b_remove_buttons_not_pressed)
+    epochs, baseline_epochs, labels, buttons = utils.get_target_data(participant, b_remove_buttons_not_pressed)
 
     if epochs is None or labels is None:
         continue
 
 
+
     # get sampling frequency
     sfreq=epochs.info['sfreq']
-    timepoints = epochs.times
+    if (baseline_epochs.info['sfreq'] != sfreq):
+        print('baseline epochs and normal epochs have to have same sampling frequency!!')
+    timepoints_epochs = epochs.times
+
+    timepoints_baseline = baseline_epochs.times - 4 ############################################## todo
+
+    timepoints = np.concatenate((timepoints_baseline, timepoints_epochs))
     # extract data stored in epochs
-    data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
+    #data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
+
+
+    arr_epochs = epochs.get_data(copy=False)
+    arr_baseline = baseline_epochs.get_data(copy=False)
+    data_x = np.concatenate((arr_baseline, arr_epochs), axis = 2)
+    #new_epochs = mne.EpochsArray(new_arr_epochs)
+
+
 
 
     # remove trials in which no button was pressed when emotion peaked
@@ -62,7 +80,7 @@ for p, participant in enumerate(participants):
 
 
     if settings.classes == "binary":
-        labels = np.mean(labels) <  labels
+        labels = np.mean(labels) < labels
 
 
     # if there are less than 20 epochs, skip this participant
@@ -70,6 +88,7 @@ for p, participant in enumerate(participants):
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
+    # if there are less than 5 targets per class, skip this participant
     if any([c<5 for c in np.bincount(labels)]):
         axs[p].set_title(f'{participant=}')
         axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')

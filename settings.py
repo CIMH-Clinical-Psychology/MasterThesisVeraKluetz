@@ -39,6 +39,12 @@ event_id_selection = 30
 #            'trigger_flanker_start': 104}
 tmin = -4
 tmax = 0
+
+# baseline
+event_id_selection2 = 10 #99
+tmin2 = -2.5
+tmax2 = 1
+
 # for the fileending, choose between the following:
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
 fileending = ""

@@ -283,13 +283,13 @@ def extract_windows(arr, sfreq, win_size, step_size, axis=-1):
     return windows
 
   
-def load_epoch(participant):
+def load_epoch(participant, event_id_selection=settings.event_id_selection, tmin=settings.tmin, tmax=settings.tmax):
     '''Reads the epochs saved at the epochs folderpath and parameters set in the settings.py. Filename has the format
     participant_event_id_tmin_tmax_fileending. Tries to read in the epochs, otherwise prints a warning.
     Input: participant number in the 2-digit format, 01,02,...34,35
     Returns: either the epochs read from a fif file, or None if it could not be read'''
 
-    filename_epoch = f'participant{participant}_event_id_selection{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}{settings.fileending}'
+    filename_epoch = f'participant{participant}_event_id_selection{event_id_selection}_tmin{tmin}_tmax{tmax}{settings.fileending}'
     full_filename_fif = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
     # read the epochs
     try:
@@ -358,6 +358,35 @@ def get_target_data(participant, button_press_output = True):
 
     # read the epochs
     epochs = load_epoch(participant)
+    # read baseline epochs
+    baseline_epochs = load_epoch(participant, settings.event_id_selection2, settings.tmin2, settings.tmax2)
+    # crop baseline epochs
+    baseline_epochs.crop(-1.5, 0) ##################todo
+
+    # get difference between indices of epochs and baseline epochs for further calculations
+    baseline_modulo = baseline_epochs.selection[0] % 10
+    epochs_modulo = epochs.selection[0] % 10
+    difference = epochs_modulo - baseline_modulo
+
+    # get rid of all baseline epochs which do not have a corresponding part in epochs
+    baseline_epochs_indices_to_drop = []
+    for i in np.arange(len(baseline_epochs.selection)):
+        if (baseline_epochs.selection[i] + difference) not in epochs.selection:
+            baseline_epochs_indices_to_drop.append(i)
+    baseline_epochs.drop(baseline_epochs_indices_to_drop)
+
+    # get rid of all epochs which do not have a corresponding baseline
+    epochs_indices_to_drop = []
+    for i in np.arange(len(epochs.selection)):
+        if (epochs.selection[i] - 2) not in baseline_epochs.selection:
+            epochs_indices_to_drop.append(i)
+    epochs.drop(epochs_indices_to_drop)
+
+
+    if len(epochs) == 0:
+        return None, None, None, None
+
+
 
     # read the target
     try:
@@ -367,7 +396,7 @@ def get_target_data(participant, button_press_output = True):
                       f"If you expected the file to exist, check in the EMO_REACT_PRESTUDY in the participants_data folder if the csv file exists.\n "
                       f"Make sure that the file is not currently opened by another program!!\n "
                       f"Proceeding with next participant.\n")
-        return epochs, None
+        return epochs, None, None, None
 
     # -------------------- create target containing the gif positions --------------
     # only select the targets, that belong to the epochs that have not been rejected
@@ -420,7 +449,7 @@ def get_target_data(participant, button_press_output = True):
     if target_rating.any() == False:
         target_rating = None
 
-    return epochs, target_rating, button_pressed
+    return epochs, baseline_epochs, target_rating, button_pressed
 
 
 

@@ -24,6 +24,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import f1_score
 from tqdm import tqdm
 import scipy
+from imblearn.under_sampling import RandomUnderSampler
 
 
 
@@ -262,6 +263,9 @@ def run_cv(clf, data_x_t, labels, n_splits=5):
     """
     warnings.filterwarnings("error", category=UserWarning)
 
+    # Create a RandomUnderSampler object
+    rus = RandomUnderSampler(random_state=42, sampling_strategy='majority')
+
     cv = StratifiedKFold(n_splits=n_splits)
     accs_f1s = []
     # Loop over each fold
@@ -269,6 +273,10 @@ def run_cv(clf, data_x_t, labels, n_splits=5):
         for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, labels)):
             x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
             y_train, y_test = labels[train_idx], labels[test_idx]
+
+            # Balancing the data
+            x_train, y_train = rus.fit_resample(x_train, y_train)
+
 
             # clf can also be a pipe object
             clf.fit(x_train, y_train)
