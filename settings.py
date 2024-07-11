@@ -53,9 +53,14 @@ target = "subj_valence" # "subj_arousal" "obj_valence"
 classes = "binary" #"origClasses"
 output_metric = "f1_score" # alternatively "accuracy"
 
+# todo: penalty l2
+
+# idx_oversampled = np.random.choice(np.arange(n_baselineepochs), replace=True, size=len(n_gifepochs))
+# data_x = np.hstack([baseline_epochs[idx_oversampled], gif_epochs])
 # --- select classifier ----
 clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else
 #clf = RandomForestClassifier(n_estimators=100, random_state=99) # could also use RandomForest, as it's more robust, should always work out of the box
+# todo: 200 - 500 for n_estimator
 classifier_name = clf.__class__.__name__
 
 pipe = Pipeline(steps=[('scaler', StandardScaler()),
@@ -90,6 +95,12 @@ elif username == 'vera.kluetz' and host=='zislrds0035.zi.local': # simons VM
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
     epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+
+elif username == r'zi\vera.kluetz' and host=='zislrds0035.zi.local': # simons VM
+    cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
+    datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
+    epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+
 
 elif username == 'simon.kern' and host == 'zislrds0035.zi.local':  # simons VM
     cachedir = f'{home}/Desktop/joblib/'

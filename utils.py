@@ -19,6 +19,8 @@ import seaborn as sns
 from joblib import Memory
 from sklearn import feature_extraction
 import mne
+import random
+import numpy as np
 
 mem = Memory(settings.cachedir)
 
@@ -358,10 +360,11 @@ def get_target_data(participant, button_press_output = True):
 
     # read the epochs
     epochs = load_epoch(participant)
-    # read baseline epochs
+    # read baseline epochs #todo: add proper error handling, copy paste?
     baseline_epochs = load_epoch(participant, settings.event_id_selection2, settings.tmin2, settings.tmax2)
     # crop baseline epochs
-    baseline_epochs.crop(-1.5, 0) ##################todo
+    baseline_epochs.crop(-1.5, 0) ##################todo change to something non static, or leave out and create perfect baseline epochs time lenght wise
+    baseline_epochs_copy = baseline_epochs.copy()
 
     # get difference between indices of epochs and baseline epochs for further calculations
     baseline_modulo = baseline_epochs.selection[0] % 10
@@ -375,17 +378,42 @@ def get_target_data(participant, button_press_output = True):
             baseline_epochs_indices_to_drop.append(i)
     baseline_epochs.drop(baseline_epochs_indices_to_drop)
 
-    # get rid of all epochs which do not have a corresponding baseline
-    epochs_indices_to_drop = []
+    baseline_epochs_dropped = baseline_epochs.copy()
+    # for all epochs which do not have a corresponding baseline epoch, add a random baseline epoch
+    baseline_epochs_indices_to_add = []
     for i in np.arange(len(epochs.selection)):
-        if (epochs.selection[i] - 2) not in baseline_epochs.selection:
-            epochs_indices_to_drop.append(i)
-    epochs.drop(epochs_indices_to_drop)
+        if (epochs.selection[i] - difference) not in baseline_epochs_dropped.selection:
 
+            #baseline_epochs_indices_to_add.append(i)
+            random_baseline_epoch = random.choice(baseline_epochs_copy)
+            # take a random baseline copy epoch
+    #       # give it right indice
+    #        add it to baseline epochs
+    #todo: take random baseline epoch and give it an indice from above list and add it to the baseline_epochs epoch list
+
+    ####################begin experiment ################
+
+            new_data = np.insert(baseline_epochs.get_data(copy=False), i, random_baseline_epoch.get_data(copy=False), axis=0)
+            #myeve = random_baseline_epoch.events
+            #new_event = np.array([[i, 0, myeve[0,:]]])
+            new_event = np.array([[i, 0, random_baseline_epoch.events[0,2]]])
+            new_events = np.insert(baseline_epochs.events, i, new_event, axis=0)
+            new_events[i+1:, 0] +=1
+
+            if baseline_epochs.metadata is not None:
+                new_metadata = baseline_epochs.metadata.copy()
+                new_metadata = new_metadata.append(random_baseline_epoch.metadata, ignore_index=True)
+                new_metadata = new_metadata.iloc[np.arange(len(new_metadata)) != i, :]
+            else:
+                new_metadata = None
+
+            baseline_epochs = mne.EpochsArray(new_data, epochs.info, new_events, metadata=new_metadata)
+            # problem: it is not possible to convert np array new_data into an Epochs object
+
+    ###############end experiment###################
 
     if len(epochs) == 0:
         return None, None, None, None
-
 
 
     # read the target

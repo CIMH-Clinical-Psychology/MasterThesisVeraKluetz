@@ -1,14 +1,11 @@
 import os
 import time
-
-import mne
-
-import settings
-import utils
 import matplotlib.pyplot as plt
-import functions
 import pandas as pd
 import numpy as np
+import functions
+import settings
+import utils
 
 os.nice(1)  # make sure we're not clogging the CPU
 plt.ion()
@@ -22,11 +19,15 @@ step_size = 0.1 #todo: is step size 0.25 to big? only 50% overlap
 b_remove_buttons_not_pressed = True
 n_components_pca = 100
 bands_selection = ['delta', 'theta', 'alpha', 'beta']
-
 bands_dict = {'delta': [1, 4],
                    'theta': [4, 8],
                    'alpha': [8, 12],
                    'beta': [13, 30]}
+bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
+
+
+bands_selection = ['1Hz-Bin']
+bands = [[i, i+1] for i in range(30)]
 
 
 # measure code execution
@@ -56,10 +57,13 @@ for p, participant in enumerate(participants):
     # get sampling frequency
     sfreq=epochs.info['sfreq']
     if (baseline_epochs.info['sfreq'] != sfreq):
-        print('baseline epochs and normal epochs have to have same sampling frequency!!')
-    timepoints_epochs = epochs.times
-
-    timepoints_baseline = baseline_epochs.times - 4 ############################################## todo
+        print('baseline epochs and normal epochs have to have the same sampling frequency!!')
+    # let the baseline epochs end at 0.0
+    #timepoints_baseline = baseline_epochs.times - max(baseline_epochs.times)
+    timepoints_baseline = np.linspace(min(baseline_epochs.times)-max(baseline_epochs.times), 0, len(baseline_epochs.times))
+    timepoints_epochs = np.linspace(0, max(epochs.times)-min(epochs.times), len(epochs.times))
+    # let the timepoints of the normal epochs start at timepint 0.0
+    #timepoints_epochs = epochs.times - min(epochs.times)
 
     timepoints = np.concatenate((timepoints_baseline, timepoints_epochs))
     # extract data stored in epochs
@@ -70,8 +74,6 @@ for p, participant in enumerate(participants):
     arr_baseline = baseline_epochs.get_data(copy=False)
     data_x = np.concatenate((arr_baseline, arr_epochs), axis = 2)
     #new_epochs = mne.EpochsArray(new_arr_epochs)
-
-
 
 
     # remove trials in which no button was pressed when emotion peaked
@@ -96,8 +98,7 @@ for p, participant in enumerate(participants):
 
     windows = utils.extract_windows(data_x, sfreq, win_size=window_size, step_size=step_size)
     #shape(144, 306, 16, 500)
-    
-    bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
+
 
     windows_power = functions.get_bands_power(windows, sfreq, bands)
     # shape (2,34,306,16)
@@ -160,7 +161,7 @@ for p, participant in enumerate(participants):
 
 
 
-bands_string = result = '-'.join(bands_selection)
+bands_string = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
                              f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.output_metric}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_winSize{window_size}_stepSize{step_size}_pca{n_components_pca}{settings.fileending}.png")
 

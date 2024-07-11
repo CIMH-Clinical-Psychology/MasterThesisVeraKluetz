@@ -276,15 +276,10 @@ def run_cv(clf, data_x_t, labels, n_splits=5):
 
             # Balancing the data
             x_train, y_train = rus.fit_resample(x_train, y_train)
+            #print(np.bincount(y_train))
 
-
-            # clf can also be a pipe object
             clf.fit(x_train, y_train)
-
-            #model = StandardScaler().fit(x_train, y_train)
-
             preds = clf.predict(x_test)
-            #preds = model.predict(x_test)
 
             if settings.output_metric == 'f1_score':
                 f1 = f1_score(y_test, preds)
@@ -295,11 +290,11 @@ def run_cv(clf, data_x_t, labels, n_splits=5):
                 accs_f1s.append(acc)
 
 
-
     except UserWarning as e:
         if "The least populated class in y has only" in str(e):
             print(f"Skipping participant due to insufficient class members. {e} {y_test=} {y_train=}")
             return None
+
     return accs_f1s
 
 
@@ -323,13 +318,14 @@ def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=
     times = df_subj.timepoint
 
     sns.lineplot(data=df_subj, x='timepoint', y=settings.output_metric, ax=ax)
-    ax.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    #ax.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    ax.vlines(0, min(df_subj[settings.output_metric]), max(df_subj[settings.output_metric]), linestyles='--', colors='gray')
     ax.set_title(f'{participant=}')
     # then plot a summary of all participant into the big plot
     ax_bottom.clear()  # clear axis from previous line
     sns.lineplot(data=df_all, x='timepoint', y=settings.output_metric, ax=ax_bottom)
-    ax_bottom.hlines(random_chance, min(times), max(times), linestyle='--',
-                     color='gray')  # draw random chance line
+    #ax_bottom.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    ax_bottom.vlines(0, min(df_subj[settings.output_metric]), max(df_subj[settings.output_metric]), linestyles='--', colors='gray')
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
     fig.tight_layout()
     plt.pause(0.1)  # necessary for plotting to update
@@ -473,6 +469,7 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
                             settings.output_metric: np.ravel(res),
                             'split': list(range(n_splits)) * len(res)
                             })
+
 
     return df_subj
 
