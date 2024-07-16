@@ -386,12 +386,7 @@ def get_target_data(participant, button_press_output = True):
 
             #baseline_epochs_indices_to_add.append(i)
             random_baseline_epoch = random.choice(baseline_epochs_copy)
-            # take a random baseline copy epoch
-    #       # give it right indice
-    #        add it to baseline epochs
-    #todo: take random baseline epoch and give it an indice from above list and add it to the baseline_epochs epoch list
 
-    ####################begin experiment ################
 
             new_data = np.insert(baseline_epochs.get_data(copy=False), i, random_baseline_epoch.get_data(copy=False), axis=0)
             #myeve = random_baseline_epoch.events
@@ -410,7 +405,7 @@ def get_target_data(participant, button_press_output = True):
             baseline_epochs = mne.EpochsArray(new_data, epochs.info, new_events, metadata=new_metadata)
             # problem: it is not possible to convert np array new_data into an Epochs object
 
-    ###############end experiment###################
+
 
     if len(epochs) == 0:
         return None, None, None, None
@@ -441,6 +436,8 @@ def get_target_data(participant, button_press_output = True):
         df_subj = df_subj['emo_valence.rating']
     elif settings.target == "obj_valence":
         df_subj = df_subj['valence_binary']
+    elif settings.target == "gif_position":
+        df_subj = df_subj['gif_position']
     else:
        print('please set a valid target in the settings.py file')
        exit()
@@ -459,11 +456,16 @@ def get_target_data(participant, button_press_output = True):
         if all_poss_epoch_idx[i] in true_epoch_idx:
             #if i in df_subj.index: #keys():
             target_rating_str.append(df_subj[i])
-            button_pressed.append(df_button[i])
+            if(button_press_output==True):
+                button_pressed.append(df_button[i])
 
 
     # convert letter to number
-    if (settings.target != "obj_valence"):
+    if (settings.target == "gif_position"):
+        char_to_num = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+        gif_pos = [char_to_num[i] for i in target_rating_str]
+        target_rating_num = np.array(gif_pos)
+    elif (settings.target != "obj_valence"):
         target_rating_num = [int(i) for i in target_rating_str]
     else:
         char_to_num = {'pos': 0, 'neg': 1}

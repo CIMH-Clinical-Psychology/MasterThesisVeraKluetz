@@ -26,8 +26,8 @@ bands_dict = {'delta': [1, 4],
 bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
 
 
-bands_selection = ['1Hz-Bin']
-bands = [[i, i+1] for i in range(30)]
+#bands_selection = ['1Hz-Bin']
+#bands = [[i, i+1] for i in range(30)]
 
 
 # measure code execution
@@ -90,18 +90,22 @@ for p, participant in enumerate(participants):
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
+    hi = np.bincount(labels)
+    hu = np.nonzero(np.bincount(labels))
     # if there are less than 5 targets per class, skip this participant
-    if any([c<5 for c in np.bincount(labels)]):
-        axs[p].set_title(f'{participant=}')
-        axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')
-        continue  # some participants have very few usable epochs     #shape(144, 306, 16, 500)
+    #if any([c<5 for c in np.bincount(labels)]):
+    #    axs[p].set_title(f'{participant=}')
+    #    axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')
+    #    continue  # some participants have very few usable epochs     #shape(144, 306, 16, 500)
 
     windows = utils.extract_windows(data_x, sfreq, win_size=window_size, step_size=step_size)
-    #shape(144, 306, 16, 500)
+    #shape(epochs, channels, windows, secPerWindow)
 
+    bands_windows_power = functions.get_bands_power(windows, sfreq, bands)
+    # shape (n_bands,n_epochs,n_channels,n_windows)
 
-    windows_power = functions.get_bands_power(windows, sfreq, bands)
-    # shape (2,34,306,16)
+    ant_windows = functions.get_antropy_features(windows)
+    windows_power = np.concatenate((bands_windows_power, ant_windows), axis=0)
 
     # uncomment if you want to see a plot of sensor values
     #for i in range(windows_power.shape[0]):
@@ -142,7 +146,7 @@ for p, participant in enumerate(participants):
     # apply PCA
     pca_windows_power = functions.pca_fit_transform(windows_power, n_components_pca)
 
-    # reshape from (epochs*windows, bands*channels) to
+    # reshape from (epochs*windows, bands*channels) to (epochs, bands_channels, windows)
     n_epochs_windows, n_bands_channels = pca_windows_power.shape
     pca_windows_power = pca_windows_power.reshape(n_epochs, n_windows, n_bands_channels)
     pca_windows_power = pca_windows_power.transpose(0, 2, 1)
@@ -163,7 +167,7 @@ for p, participant in enumerate(participants):
 
 bands_string = '-'.join(bands_selection)
 plot_filename = os.path.join(settings.plot_folderpath,
-                             f"feature_decoding_{bands_string}_{settings.target}_{settings.classes}_{settings.output_metric}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_winSize{window_size}_stepSize{step_size}_pca{n_components_pca}{settings.fileending}.png")
+                             f"feature_decoding_{bands_string}_ant_{settings.target}_{settings.classes}_{settings.output_metric}_{settings.classifier_name}_event_id{settings.event_id_selection}_tmin{settings.tmin}_tmax{settings.tmax}_winSize{window_size}_stepSize{step_size}_pca{n_components_pca}{settings.fileending}.png")
 
 fig.savefig(plot_filename)
 

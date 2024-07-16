@@ -9,23 +9,26 @@ This file contains all functions
 """
 import os
 import sys
+
+import antropy
+
 import settings
-import numpy as np
-import pandas as pd
-from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
+import autoreject
+import scipy
 import warnings
 import mne
+import numpy as np
+import pandas as pd
+import antropy as ant
 import seaborn as sns
-import autoreject
-from joblib import Memory
-from sklearn.model_selection import StratifiedKFold
-from sklearn.decomposition import PCA
-from sklearn.metrics import f1_score
+import matplotlib.pyplot as plt
 from tqdm import tqdm
-import scipy
+from joblib import Parallel, delayed
+from joblib import Memory
+from sklearn.metrics import f1_score
+from sklearn.decomposition import PCA
+from sklearn.model_selection import StratifiedKFold
 from imblearn.under_sampling import RandomUnderSampler
-
 
 
 if sys.platform!='win32': # does not work on windows
@@ -122,7 +125,6 @@ def autoreject_fit_cached(epochs):
     ar.fit(epochs)  # weirdly enough need to pick here again
     ar.save(autoreject_cache_file, overwrite=True)
     return ar
-
 
 
 
@@ -261,7 +263,7 @@ def run_cv(clf, data_x_t, labels, n_splits=5):
     accs or f1s : list
         list of accuracies or f1 scores, for each fold one.
     """
-    warnings.filterwarnings("error", category=UserWarning)
+    warnings.filterwarnings("error", message= r".* least populated class in y.*", category=UserWarning)
 
     # Create a RandomUnderSampler object
     rus = RandomUnderSampler(random_state=42, sampling_strategy='majority')
@@ -418,6 +420,73 @@ def get_bands_power(windows, sfreq, bands, axis=-1):
     return np.array(bands_power)
 
 
+def get_antropy_features(windows):
+    '''input: shape(n_epochs, n_channels, n_windows, n_secondsPerWindow)'''
+
+    def helper_func(func, **kwargs):
+        return lambda x: func(x, **kwargs) if kwargs else func(x)
+
+    perm_entro = helper_func(ant.perm_entropy, normalize=True)
+    decom_entro = helper_func(ant.svd_entropy, normalize=True)
+    spec_entro = helper_func(ant.spectral_entropy, sf=100, method='welch', normalize=True)
+    #approx_entro = helper_func(ant.app_entropy)
+    approx_entro = lambda x: ant.app_entropy(x)
+    samp_entro = helper_func(ant.sample_entropy)
+    hjorth_mob = lambda x: ant.hjorth_params(x)
+    zero_cross = lambda x: ant.num_zerocross(x)
+    lziv_comp = helper_func(ant.lziv_complexity,'01111000011001', normalize=True)
+    petro_fd = lambda  x: ant.petrosian_fd(x)
+    katz_fd = lambda x: ant.katz_fd(x)
+    higuchi_fd = lambda x: ant.higuchi_fd(x)
+    det_fluc = lambda x: ant.detrended_fluctuation(x)
+
+
+    #perm_entro = lambda x, normalize=True: ant.perm_entropy(x, normalize)
+    #decom_entro = lambda x, normalize=True: ant.svd_entropy(x, normalize)
+    funcs = [perm_entro, decom_entro, spec_entro, approx_entro, samp_entro, hjorth_mob, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]
+
+    ant_features = []
+    for func in funcs:
+        ant_features.append(np.apply_along_axis(func1d=func, axis=-1, arr=windows))
+
+
+    #perm_ent = np.apply_along_axis(antropy.perm_entropy, axis=-1, arr=windows)
+
+    return np.array(ant_features)
+
+
+
+
+
+
+
+    n_epochs, n_channels, n_windows, n_secondsPerWindow = windows.shape
+    windows = windows.mean(axis = -1)
+    # reshape (n_epochs, n_channels, n_windows) to (n_channels per n_epochs*window)
+    windows = windows.transpose(1, 0, 2).reshape(n_channels, n_epochs * n_windows)
+
+    # reshape (n_epochs, n_channels, n_windows, n_secondsPerWindow) to (n_channels per n_epochs*window*n_seconds)
+    #windows = windows.transpose(1, 0, 2, 3).reshape(n_channels, n_epochs * n_windows * n_secondsPerWindow)
+    perm_entro = []
+    for i in range(len(windows[-1])):
+        myant = ant.perm_entropy(windows[:, i], normalize=True)
+        perm_entro.append(myant)
+
+    #perm_entro = [ant.perm_entropy(windows[:,i], normalize=True) for i in range(windows.shape[-1])]
+    perm_entro = np.array(perm_entro)
+    # reshape (n_channels, n_epochs*window) to (epochs, channels, windows)
+    n_channels, n_epochs_windows = np.shape(perm_entro)#perm_entro.shape
+    perm_entro = perm_entro.reshape(n_channels, n_epochs, n_windows)
+    perm_entro = perm_entro.transpose(1,0,2)
+
+
+
+
+
+
+
+
+
 
 def decode_features(windows_power, labels, participant, pipe, timepoints, n_splits=5, n_jobs=-1):
     '''
@@ -442,8 +511,8 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     tqdm_loop = tqdm(np.arange(windows_power.shape[2]), desc='calculating timepoints')
 
     res=[]
-    #for n_window in range(13):
-    #    res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
+    for n_window in range(46):
+        res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
     try:
         res = Parallel(n_jobs)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
         # res will return a list for each job. If there are too few class members in a class, None will be returned

@@ -41,7 +41,7 @@ tmin = -4
 tmax = 0
 
 # baseline
-event_id_selection2 = 10 #99
+event_id_selection2 = 99
 tmin2 = -2.5
 tmax2 = 1
 
@@ -49,9 +49,9 @@ tmax2 = 1
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
 fileending = ""
 
-target = "subj_valence" # "subj_arousal" "obj_valence"
+target = "subj_valence" #"gif_position" "subj_arousal" "obj_valence"
 classes = "binary" #"origClasses"
-output_metric = "f1_score" # alternatively "accuracy"
+output_metric = "accuracy" #"f1_score"
 
 # todo: penalty l2
 
