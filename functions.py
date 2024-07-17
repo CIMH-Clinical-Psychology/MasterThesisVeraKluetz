@@ -421,7 +421,8 @@ def get_bands_power(windows, sfreq, bands, axis=-1):
 
 
 def get_antropy_features(windows):
-    '''input: shape(n_epochs, n_channels, n_windows, n_secondsPerWindow)'''
+    '''input: shape(n_epochs, n_channels, n_windows, n_secondsPerWindow)
+    output: shape(n_ant_features, n_epochs, n_channels, n_windows)'''
 
     def helper_func(func, **kwargs):
         return lambda x: func(x, **kwargs) if kwargs else func(x)
@@ -434,7 +435,7 @@ def get_antropy_features(windows):
     samp_entro = helper_func(ant.sample_entropy)
     hjorth_mob = lambda x: ant.hjorth_params(x)
     zero_cross = lambda x: ant.num_zerocross(x)
-    lziv_comp = helper_func(ant.lziv_complexity,'01111000011001', normalize=True)
+    lziv_comp = helper_func(ant.lziv_complexity, normalize=True)
     petro_fd = lambda  x: ant.petrosian_fd(x)
     katz_fd = lambda x: ant.katz_fd(x)
     higuchi_fd = lambda x: ant.higuchi_fd(x)
@@ -443,7 +444,7 @@ def get_antropy_features(windows):
 
     #perm_entro = lambda x, normalize=True: ant.perm_entropy(x, normalize)
     #decom_entro = lambda x, normalize=True: ant.svd_entropy(x, normalize)
-    funcs = [perm_entro, decom_entro, spec_entro, approx_entro, samp_entro, hjorth_mob, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]
+    funcs = [perm_entro, decom_entro, spec_entro, approx_entro]#, samp_entro, hjorth_mob, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]
 
     ant_features = []
     for func in funcs:
@@ -510,9 +511,9 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     # calculate all the timepoints in parallel massively speeds up calculation
     tqdm_loop = tqdm(np.arange(windows_power.shape[2]), desc='calculating timepoints')
 
-    res=[]
-    for n_window in range(46):
-        res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
+    #res=[]
+    #for n_window in np.arange(windows_power.shape[2]:
+    #    res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
     try:
         res = Parallel(n_jobs)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
         # res will return a list for each job. If there are too few class members in a class, None will be returned

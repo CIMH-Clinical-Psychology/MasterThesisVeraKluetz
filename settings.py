@@ -41,7 +41,7 @@ tmin = -4
 tmax = 0
 
 # baseline
-event_id_selection2 = 99
+event_id_selection2 = 10
 tmin2 = -2.5
 tmax2 = 1
 

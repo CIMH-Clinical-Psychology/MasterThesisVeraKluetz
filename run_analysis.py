@@ -14,7 +14,7 @@ plt.ion()
 functions.ignore_warnings()
 
 window_size = 0.5
-step_size = 0.1 #todo: is step size 0.25 to big? only 50% overlap
+step_size = 0.15 #todo: is step size 0.25 to big? only 50% overlap
 
 b_remove_buttons_not_pressed = True
 n_components_pca = 100
