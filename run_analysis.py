@@ -35,7 +35,7 @@ start_time = time.time()
 
 # loop through each participants number from 01 to 35
 missing = [25, 28, 31]
-participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing]   #todo: set to 1
+participants = [str(i).zfill(2) for i in range(1, 36) if not i in missing]   #1 to 36
 
 # small plots for individual participants and one bottom plot for a summary
 fig, axs, ax_bottom = utils.make_fig(n_axs=len(participants), n_bottom=[0, 1], figsize=[14, 14])
@@ -90,16 +90,16 @@ for p, participant in enumerate(participants):
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
-    hi = np.bincount(labels)
-    hu = np.nonzero(np.bincount(labels))
+    #hi = np.bincount(labels)
+    #hu = np.nonzero(np.bincount(labels))
     # if there are less than 5 targets per class, skip this participant
-    #if any([c<5 for c in np.bincount(labels)]):
-    #    axs[p].set_title(f'{participant=}')
-    #    axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')
-    #    continue  # some participants have very few usable epochs     #shape(144, 306, 16, 500)
+    if any([c<5 for c in np.bincount(labels)]):
+        axs[p].set_title(f'{participant=}')
+        axs[p].text(-0.3, 0.4, f'{dict(zip(*np.unique(labels, return_counts=True)))}')
+        continue  # some participants have very few usable epochs     #shape(n_epochs, n_channel, n_windows, n_secPerWindow)
 
     windows = utils.extract_windows(data_x, sfreq, win_size=window_size, step_size=step_size)
-    #shape(epochs, channels, windows, secPerWindow)
+    #shape(n_epochs, n_channels, n_windows, n_secPerWindow)
 
     bands_windows_power = functions.get_bands_power(windows, sfreq, bands)
     # shape (n_bands,n_epochs,n_channels,n_windows)
@@ -136,7 +136,7 @@ for p, participant in enumerate(participants):
     # reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)
     n_bands, n_epochs, n_channels, n_windows = windows_power.shape
     windows_power = windows_power.transpose(1, 0, 2, 3).reshape(n_epochs, n_bands * n_channels, n_windows)
-    # shape (34, 2 * 306, 16)
+    # shape (n_epochs, n_features * n_channels, n_windows)
     #todo: PCA see how many features explain how much of the variance to determine the right amount of components
     n_bands_channels = windows_power.shape[1]
 
@@ -160,6 +160,7 @@ for p, participant in enumerate(participants):
     # append to dataframe holding all data
     df_all = pd.concat([df_all, df_subj])
 
+    utils.normalize_lims(axs, which='y')
     # update figure with subject
     functions.plot_subj_into_big_figure(df_all, participant, axs[p], ax_bottom, 0.5)
 

@@ -649,6 +649,28 @@ def plot_sensors(values, mode='size', color=None, ax=None, cmap='Reds',
     return fig, ax
 
 
+def normalize_lims(axs, which='both'):
+    """for all axes in axs: set function to min/max of all axs
+
+
+    Parameters
+    ----------
+    axs : list
+        list of axes to normalize.
+    which : string, optional
+        Which axis to normalize. Can be 'x', 'y', 'xy' oder 'both'.
+
+    """
+    if which=='both':
+        which='xy'
+    for w in which:
+        ylims = [getattr(ax, f'get_{w}lim')() for ax in axs]
+        ymin = min([x[0] for x in ylims])
+        ymax = max([x[1] for x in ylims])
+        for ax in axs:
+            getattr(ax, f'set_{w}lim')([ymin, ymax])
+
+
 
 
 

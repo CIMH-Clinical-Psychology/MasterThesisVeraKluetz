@@ -161,9 +161,11 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
                 f"There have been problems with reading or filtering the raw data in the fif file of Participant number {participant}. Proceeding with next participant.")
             continue
 
-
         # check if we have more than 25 Minutes of Recordings included
         assert len(raw) > 60 * 25 * raw.info['sfreq']  # 50 sec * 25 min * sampling frequency
+
+        # plot
+        #raw.plot()
 
         # Set EOG/ECG channel
         ch_types = {'BIO001': 'ecg', 'BIO002': 'eog', 'BIO003': 'eog'}
@@ -433,7 +435,7 @@ def get_antropy_features(windows):
     #approx_entro = helper_func(ant.app_entropy)
     approx_entro = lambda x: ant.app_entropy(x)
     samp_entro = helper_func(ant.sample_entropy)
-    hjorth_mob = lambda x: ant.hjorth_params(x)
+    hjorth_mob = lambda x: ant.hjorth_params(x) #problems with output
     zero_cross = lambda x: ant.num_zerocross(x)
     lziv_comp = helper_func(ant.lziv_complexity, normalize=True)
     petro_fd = lambda  x: ant.petrosian_fd(x)
@@ -444,7 +446,7 @@ def get_antropy_features(windows):
 
     #perm_entro = lambda x, normalize=True: ant.perm_entropy(x, normalize)
     #decom_entro = lambda x, normalize=True: ant.svd_entropy(x, normalize)
-    funcs = [perm_entro, decom_entro, spec_entro, approx_entro]#, samp_entro, hjorth_mob, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]
+    funcs = [perm_entro, decom_entro, spec_entro, approx_entro, samp_entro, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]  # hjorth_mob,
 
     ant_features = []
     for func in funcs:
