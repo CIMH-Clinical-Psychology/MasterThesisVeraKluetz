@@ -6,7 +6,7 @@ Created on Tue Mar 26 17:35:53 2024
 This file contains various functions for helping with the workflow,
 e.g. loading of responses from participants
 
-@author: simon kern
+@author: vera klütz and simon kern
 """
 import os
 import settings
