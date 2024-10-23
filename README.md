@@ -4,11 +4,11 @@
 This repository has the following structure:
 
 - for preprocessing the .fif files from the MEG, execute the 'run_preprocessing.py'
-- for decoding in which corner of the screen the GIF was shown, use the 'run_quadrant_decoding.py'. For reference, there is also the file 'quadrants_simon' which is in principal the same file written by simon, but it has not been kept up to date and is only there for reference
-- for decoding emotional content, use the 'run_analysis.py' file
+- for decoding in which corner of the screen the GIF was shown, use the 'run_quadrant_decoding.py'. For reference, there is also the file 'quadrants_simon' which is in principal the same file written by Simon, but it has not been kept up to date and is only there for reference
+**- for decoding emotional content, use the 'run_analysis.py' file**
 
 Many helper functions have been outsorced to 'functions.py' and 'utils.py', there is no clear distinction when to choose which file of them for adding a function.  
-The 'settings.py' is an important central file which contains all user settings, like which exact classifier to choose, which pre-processing version, which timepoints for the epochs, which event id,...
+**The 'settings.py' is an important central file which contains all user settings, like which exact classifier to choose, which pre-processing version, which timepoints for the epochs, which event id,...**
 
 The behavioural results of the MEG measurement have been evaluated with the 'run_behavioural_analysis.py'. For example, it creates plots showing how often people pressed the button, correlation values,..
 
