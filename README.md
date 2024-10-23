@@ -14,13 +14,13 @@ The behavioural results of the MEG measurement have been evaluated with the 'run
 
 
 
-
+<br />
 <br /> 
 <br /> 
 <br /> 
 <br /> 
-
-       
+<br />
+<br />       
 
 
 For reference, here is the trial workflow:
