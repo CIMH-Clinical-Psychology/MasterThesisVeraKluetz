@@ -3,7 +3,7 @@
 """
 Created on Mon Mar 25 15:11:07 2024
 
-@author: simon.kern
+@author: vera.klütz and simon.kern
 """
 import os
 import getpass
@@ -27,7 +27,7 @@ plot_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Plots/")
 
 # Regarding the following parameters:
 #  - if you are before preprocessing, choose the parameters as you like
-#  - if you want to use already prepocessed data, take the following parameters from the stored filenames you want to use!
+#  - if you want to use already prepocessed data, take the following parameters from the names of the stored files you want to use!
 
 event_id_selection = 30
 #event_id = {'trigger_preimage': 10,
@@ -39,13 +39,28 @@ event_id_selection = 30
 #            'trigger_flanker_start': 104}
 tmin = -4
 tmax = 0
+
+# baseline
+event_id_selection2 = 10
+tmin2 = -2.5
+tmax2 = 1
+
 # for the fileending, choose between the following:
 # ""  "_noIcaEogRejection"   "_minimalPreprocessing"   "_EOG-only"
-fileending = "_minimalPreprocessing"
+fileending = ""
+
+target = "subj_valence" #"gif_position" "subj_arousal" "obj_valence"
+classes = "binary" #"origClasses"
+output_metric = "accuracy" #"f1_score"
+
+
+# idx_oversampled = np.random.choice(np.arange(n_baselineepochs), replace=True, size=len(n_gifepochs))
+# data_x = np.hstack([baseline_epochs[idx_oversampled], gif_epochs])
 
 # --- select classifier ----
 clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else
 #clf = RandomForestClassifier(n_estimators=100, random_state=99) # could also use RandomForest, as it's more robust, should always work out of the box
+# todo: 200 - 500 for n_estimator
 classifier_name = clf.__class__.__name__
 
 pipe = Pipeline(steps=[('scaler', StandardScaler()),
@@ -54,7 +69,7 @@ pipe = Pipeline(steps=[('scaler', StandardScaler()),
 
 # loop through each participants number from 01 to 35
 _missing = [25, 28, 31]
-participants = [str(i).zfill(2) for i in range(1, 36) if not i in _missing]   #todo: set to 1
+participants = [str(i).zfill(2) for i in range(1, 36) if not i in _missing]   
 
 
 #%%###################
@@ -80,6 +95,12 @@ elif username == 'vera.kluetz' and host=='zislrds0035.zi.local': # simons VM
     cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
     datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
     epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+
+elif username == r'zi\vera.kluetz' and host=='zislrds0035.zi.local': # simons VM
+    cachedir = '/zi/flstorage/group_klips/data/data/VeraK/joblib_cache'
+    datadir = "/zi/flstorage/group_klips/data/data/Emo-React-Prestudy/participant_data/"
+    epochs_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Prestudy_preprocessed_epochs/")
+
 
 elif username == 'simon.kern' and host == 'zislrds0035.zi.local':  # simons VM
     cachedir = f'{home}/Desktop/joblib/'

@@ -46,7 +46,8 @@ functions.loop_through_participants(tmin,
                                     picks='meg',
                                     fileending="",
                                     autoreject=True,
-                                    ica_ecg=True,
+                                    ica_ecg=False, # this is set to False because we decided to not filter out ecg related components in the brain signal
+     # because they might tell us something about arousal (hypothesis)
                                     ica_eog=True)
 
 ## take meg data and do not filter out eog components via ica

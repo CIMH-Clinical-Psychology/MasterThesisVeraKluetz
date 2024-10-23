@@ -3,26 +3,30 @@
 """
 Created on Tue Apr 26 14:56 2024
 
-This file contains all functions
+This file contains all helper functions
 
-@author: vera klütz
+@author: vera.klütz
 """
 import os
 import sys
+import antropy
 import settings
-import numpy as np
-import pandas as pd
-from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
+import autoreject
+import scipy
 import warnings
 import mne
+import numpy as np
+import pandas as pd
+import antropy as ant
 import seaborn as sns
-import autoreject
-from joblib import Memory
-from sklearn.model_selection import StratifiedKFold
-from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 from tqdm import tqdm
-import scipy
+from joblib import Parallel, delayed
+from joblib import Memory
+from sklearn.metrics import f1_score
+from sklearn.decomposition import PCA
+from sklearn.model_selection import StratifiedKFold
+from imblearn.under_sampling import RandomUnderSampler
 
 
 if sys.platform!='win32': # does not work on windows
@@ -30,11 +34,12 @@ if sys.platform!='win32': # does not work on windows
 
 # define cached functions for faster execution
 mem = Memory(settings.cachedir if settings.caching else None)  # only enable caching if wanted
-# cached_func = mne.cache(mne.io.read_raw)
 
 
 @mem.cache
 def read_raw_filtered_cached(fif_filepath, highpass, lowpass, notch):
+    """reads the raw fif file and highpass (and lowpasses) the data and if 
+    applicable also applies a notch filter"""
     raw = mne.io.read_raw_fif(fif_filepath, preload=True, verbose='INFO')
     raw.filter(highpass, lowpass, n_jobs=-1)
     if notch is not None:
@@ -49,6 +54,7 @@ def fit_apply_ica_cached(mne_obj, mne_obj_meg, ica_def, ica_ecg, ica_eog):
     mne_obj_meg contains only MEG channels (usually 306)
     expects a raw or epochs item
     returns the same object but with EOG and ECG components removed"""
+    
     print('###  running ica')
     # work on a copy of the data, as some operations are in place
     mne_obj_meg = mne_obj_meg.copy()
@@ -80,6 +86,9 @@ def ignore_warnings():
     warnings.filterwarnings("ignore",
                             message=".*does not conform to MNE naming conventions. All raw files should end with raw.fif, raw_sss.fif, raw_tsss.fif*",
                             category=RuntimeWarning, module="mne")
+    warnings.filterwarnings("ignore",
+                            message=".*use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead*",
+                            category=FutureWarning, module="seaborn")
 
 
 def valid_filename(string):
@@ -102,6 +111,8 @@ def valid_filename(string):
 
 
 def autoreject_fit_cached(epochs):
+    """automatically takes out bad epochs. It only re-computes this step if no calculation is already stored.
+    """
     print('###  running autoreject')
     epochs_hash = hash(epochs)
     autoreject_cache_file = valid_filename(f'{settings.cachedir}/{epochs_hash}.autoreject')
@@ -116,7 +127,6 @@ def autoreject_fit_cached(epochs):
     ar.fit(epochs)  # weirdly enough need to pick here again
     ar.save(autoreject_cache_file, overwrite=True)
     return ar
-
 
 
 
@@ -153,9 +163,11 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
                 f"There have been problems with reading or filtering the raw data in the fif file of Participant number {participant}. Proceeding with next participant.")
             continue
 
-
         # check if we have more than 25 Minutes of Recordings included
         assert len(raw) > 60 * 25 * raw.info['sfreq']  # 50 sec * 25 min * sampling frequency
+
+        # plot
+        #raw.plot()
 
         # Set EOG/ECG channel
         ch_types = {'BIO001': 'ecg', 'BIO002': 'eog', 'BIO003': 'eog'}
@@ -214,13 +226,15 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
                 )
 
         # --------------------- save epochs ---------------------------------------
+        if epochs_meg.times.flags['WRITEABLE']:
+            # Set times array to read-only
+            epochs_meg.times.setflags(write=False)
+
         print('###  saving epochs')
         filename_epoch = f'{participant=}_{event_id_selection=}_{tmin=}_{tmax=}{fileending}'
         filename_epoch = valid_filename(filename_epoch)
         epoch_file_path = os.path.join(settings.epochs_folderpath, f"{filename_epoch}-epo.fif")
         epochs_meg.save(epoch_file_path, fmt='double', overwrite=True)
-
-
 
 
 
@@ -231,7 +245,7 @@ def read_epoch_cached_fif(full_filename):
     return epochs
 
 
-def run_cv(clf, data_x_t, gif_pos, n_splits=5):
+def run_cv(clf, data_x_t, labels, n_splits=5):
     """outsourced crossvalidation function to run on a single timepoint,
     this way the function can be parallelized
 
@@ -241,36 +255,51 @@ def run_cv(clf, data_x_t, gif_pos, n_splits=5):
         any object having a .fit and a .predict function (Pipeline, Classifier).
     data_x_t : np.ndarray
         numpy array with shape [examples, features].
-    gif_pos : np.ndarray, list
+    labels : np.ndarray, list
         list or array of target variables.
     n_splits : int, optional
         number of splits. The default is 5.
 
     Returns
     -------
-    accs : list
-        list of accuracies, for each fold one.
+    accs or f1s : list
+        list of accuracies or f1 scores, for each fold one.
     """
+    warnings.filterwarnings("error", message= r".* least populated class in y.*", category=UserWarning)
+
+    # Create a RandomUnderSampler object
+    rus = RandomUnderSampler(random_state=42, sampling_strategy='majority')
 
     cv = StratifiedKFold(n_splits=n_splits)
-    accs = []
+    accs_f1s = []
     # Loop over each fold
-    for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, gif_pos)):
-        x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
-        y_train, y_test = gif_pos[train_idx], gif_pos[test_idx]
+    try:
+        for k, (train_idx, test_idx) in enumerate(cv.split(data_x_t, labels)):
+            x_train, x_test = data_x_t[train_idx], data_x_t[test_idx]
+            y_train, y_test = labels[train_idx], labels[test_idx]
 
-        # clf can also be a pipe object
-        clf.fit(x_train, y_train)
+            # Balancing the data
+            x_train, y_train = rus.fit_resample(x_train, y_train)
+            #print(np.bincount(y_train))
 
-        #model = StandardScaler().fit(x_train, y_train)
+            clf.fit(x_train, y_train)
+            preds = clf.predict(x_test)
 
-        preds = clf.predict(x_test)
-        #preds = model.predict(x_test)
+            if settings.output_metric == 'f1_score':
+                f1 = f1_score(y_test, preds)
+                accs_f1s.append(f1)
+            else:
+                # accuracy = mean of binary predictions
+                acc = np.mean((preds == y_test))
+                accs_f1s.append(acc)
 
-        # accuracy = mean of binary predictions
-        acc = np.mean((preds == y_test))
-        accs.append(acc)
-    return accs
+
+    except UserWarning as e:
+        if "The least populated class in y has only" in str(e):
+            print(f"Skipping participant due to insufficient class members. {e} {y_test=} {y_train=}")
+            return None
+
+    return accs_f1s
 
 
 
@@ -288,41 +317,28 @@ def plot_epochs_per_participant(participants, list_num_epochs):
 
 
 def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=0.25):
+    """ updates the big results figure with the results of the current participant"""
     fig = ax.figure
     df_subj = df_all[df_all.participant==participant]
     times = df_subj.timepoint
 
-    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
-    ax.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    sns.lineplot(data=df_subj, x='timepoint', y=settings.output_metric, ax=ax)
+    #ax.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    ax.vlines(0, min(df_subj[settings.output_metric]), max(df_subj[settings.output_metric]), linestyles='--', colors='gray')
     ax.set_title(f'{participant=}')
     # then plot a summary of all participant into the big plot
     ax_bottom.clear()  # clear axis from previous line
-    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
-    ax_bottom.hlines(random_chance, min(times), max(times), linestyle='--',
-                     color='gray')  # draw random chance line
+    sns.lineplot(data=df_all, x='timepoint', y=settings.output_metric, ax=ax_bottom)
+    #ax_bottom.hlines(random_chance, min(times), max(times), linestyle='--', color='gray')  # draw random chance line
+    ax_bottom.vlines(0, min(df_subj[settings.output_metric]), max(df_subj[settings.output_metric]), linestyles='--', colors='gray')
     ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
     fig.tight_layout()
     plt.pause(0.1)  # necessary for plotting to update
 
 
-#def old_plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all):
-#    '''plots a subject into the small axis and then updates the summary of all participants in the lower right plot'''
-#    # first plot this participant into the small axis
-#    ax = axs[p]  # select axis of this participant
-#    sns.lineplot(data=df_subj, x='timepoint', y='accuracy', ax=ax)
-#    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
-#    ax.set_title(f'{participant=}')
-#    # then plot a summary of all participant into the big plot
-#    ax_bottom.clear()  # clear axis from previous line
-#    sns.lineplot(data=df_all, x='timepoint', y='accuracy', ax=ax_bottom)
-#    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--',
-#                     color='gray')  # draw random chance line
-#    ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
-#    fig.tight_layout()
-#    plt.pause(0.1)  # necessary for plotting to update
-
 
 def get_windows_power(windows, sfreq, axis=-1):
+    """calculates the spectral power of each window"""
     ##todo: check once in a while if taking all windows at once instead of looping through them takes up too much memory
     w = scipy.fftpack.rfft(windows, axis=axis)
     freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
@@ -330,53 +346,6 @@ def get_windows_power(windows, sfreq, axis=-1):
     # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
     power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
     return power, freqs
-
-    # previous get_windows_power code
-    #'''returns a list of lists of e.g. alpha power. Each alhpa power has the shape (epochs x channel)'''
-    #windows_power = []
-    ## convert to frequency domain via rfft (we don't need the imaginary part)
-    #w = scipy.fftpack.rfft(windows, axis=-1)
-    #freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
-    ## w.shape = (144, 306, 16, 500)
-    ## freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
-    #power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
-    ## e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
-    ## now you can use these to calculate brain bands, e.g.
-    #alpha = [8, 14]
-    #alpha_idx1 = np.argmax(freqs > alpha[0])
-    #alpha_idx2 = np.argmax(freqs > alpha[1])
-    #alpha_power = power[:, :, :, alpha_idx1:alpha_idx2].mean(-1)
-    ## alpha_power .shape = (144, 306, 6)
-    ## for each epoch, for each channel, for each window, one alpha power value
-    #windows_power += [alpha_power[:,:,i] for i in np.arange(windows.shape[2])]  # add alpha power values of each window to list
-#
-    #return windows_power
-
-
-    ## even more old get_windwos_power code for looping through each window individually
-    #windows_power = []
-    ## loop through windows
-    #for i in tqdm(range(windows.shape[2])):
-    #    # this loop can for sure be paralellized and also should be a function with parameters and not a loop
-    #    win = windows[:, :, i, :]
-    #    # convert to frequency domain via rfft (we don't need the imaginary part)
-    #    w = scipy.fftpack.rfft(win, axis=-1)
-    #    freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
-    #    # w.shape = (144, 306, 500)
-    #    # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
-    #    power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
-    #    # e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
-    #    # now you can use these to calculate brain bands, e.g.
-    #    alpha = [8, 14]
-    #    alpha_idx1 = np.argmax(freqs > alpha[0])
-    #    alpha_idx2 = np.argmax(freqs > alpha[1])
-    #    alpha_power = power[:, :, alpha_idx1:alpha_idx2].mean(-1)
-    #    # alpha_power .shape = (144, 306),
-    #    # for each epoch, for each channel one alpha power value
-    #    windows_power += [alpha_power]  # add alpha power values of this window to list
-
-    #return windows_power
-
 
 
 
@@ -392,6 +361,72 @@ def get_bands_power(windows, sfreq, bands, axis=-1):
     return np.array(bands_power)
 
 
+def get_antropy_features(windows):
+    '''input: shape(n_epochs, n_channels, n_windows, n_secondsPerWindow)
+    output: shape(n_ant_features, n_epochs, n_channels, n_windows)'''
+
+    def helper_func(func, **kwargs):
+        return lambda x: func(x, **kwargs) if kwargs else func(x)
+
+    perm_entro = helper_func(ant.perm_entropy, normalize=True)
+    decom_entro = helper_func(ant.svd_entropy, normalize=True)
+    spec_entro = helper_func(ant.spectral_entropy, sf=100, method='welch', normalize=True)
+    #approx_entro = helper_func(ant.app_entropy)
+    approx_entro = lambda x: ant.app_entropy(x)
+    samp_entro = helper_func(ant.sample_entropy)
+    hjorth_mob = lambda x: ant.hjorth_params(x) #problems with output
+    zero_cross = lambda x: ant.num_zerocross(x)
+    lziv_comp = helper_func(ant.lziv_complexity, normalize=True)
+    petro_fd = lambda  x: ant.petrosian_fd(x)
+    katz_fd = lambda x: ant.katz_fd(x)
+    higuchi_fd = lambda x: ant.higuchi_fd(x)
+    det_fluc = lambda x: ant.detrended_fluctuation(x)
+
+    #perm_entro = lambda x, normalize=True: ant.perm_entropy(x, normalize)
+    #decom_entro = lambda x, normalize=True: ant.svd_entropy(x, normalize)
+    funcs = [perm_entro, decom_entro, spec_entro, approx_entro, samp_entro, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]  # hjorth_mob,
+
+    ant_features = []
+    for func in funcs:
+        ant_features.append(np.apply_along_axis(func1d=func, axis=-1, arr=windows))
+
+    #perm_ent = np.apply_along_axis(antropy.perm_entropy, axis=-1, arr=windows)
+
+    return np.array(ant_features)
+
+
+
+
+
+
+
+    n_epochs, n_channels, n_windows, n_secondsPerWindow = windows.shape
+    windows = windows.mean(axis = -1)
+    # reshape (n_epochs, n_channels, n_windows) to (n_channels per n_epochs*window)
+    windows = windows.transpose(1, 0, 2).reshape(n_channels, n_epochs * n_windows)
+
+    # reshape (n_epochs, n_channels, n_windows, n_secondsPerWindow) to (n_channels per n_epochs*window*n_seconds)
+    #windows = windows.transpose(1, 0, 2, 3).reshape(n_channels, n_epochs * n_windows * n_secondsPerWindow)
+    perm_entro = []
+    for i in range(len(windows[-1])):
+        myant = ant.perm_entropy(windows[:, i], normalize=True)
+        perm_entro.append(myant)
+
+    #perm_entro = [ant.perm_entropy(windows[:,i], normalize=True) for i in range(windows.shape[-1])]
+    perm_entro = np.array(perm_entro)
+    # reshape (n_channels, n_epochs*window) to (epochs, channels, windows)
+    n_channels, n_epochs_windows = np.shape(perm_entro)#perm_entro.shape
+    perm_entro = perm_entro.reshape(n_channels, n_epochs, n_windows)
+    perm_entro = perm_entro.transpose(1,0,2)
+
+
+
+
+
+
+
+
+
 
 def decode_features(windows_power, labels, participant, pipe, timepoints, n_splits=5, n_jobs=-1):
     '''
@@ -402,28 +437,30 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     labels: 1D with the target values
     participant: string with participant number
 
-    returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy, split
+    returns: pandas DataFrame for one subject with the attributes: participant, timepoint, accuracy/f1 score, split
     '''
 
-    print(' Decoding starts')
+    print('Decoding starts')
 
     df_subj = pd.DataFrame()  # save results for this participant temporarily in a df
 
     # Access and change the random_state parameter for the new classifier
     pipe.set_params(classifier__random_state=99)
 
-    #
     # calculate all the timepoints in parallel massively speeds up calculation
     tqdm_loop = tqdm(np.arange(windows_power.shape[2]), desc='calculating timepoints')
 
     #res=[]
-    #for n_window in range(13):
+    #for n_window in np.arange(windows_power.shape[2]:
     #    res = run_cv(pipe, windows_power[:, :, n_window], labels, n_splits=n_splits)
     try:
         res = Parallel(n_jobs)(delayed(run_cv)(pipe, windows_power[:,:,n_window], labels, n_splits=n_splits) for n_window in tqdm_loop)
-    except:
+        # res will return a list for each job. If there are too few class members in a class, None will be returned
+        if None in res:
+            return None
+    except Exception as e:
         warnings.warn(
-            f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton.")
+            f"There was an error with participant number {participant}. Maybe there were too few epochs for cross validaton. {e}")
         return None
 
 
@@ -432,28 +469,32 @@ def decode_features(windows_power, labels, participant, pipe, timepoints, n_spli
     timepoints = np.array(timepoints, dtype=float)
     # save result of the folds in a dataframe.
     # the unravelling of the res object can be a bit confusing.
-    # res is a list, each entry has 5 accuracy values, for each fold one.
+    # res is a list, each entry has 5 accuracy/f1 score values, for each fold one.
     # we need to now make sure that in the dataframe each row has one
-    # accuracy value and it's assigned timepoint, and also an indicator of the
+    # accuracy/ f1 score value and it's assigned timepoint, and also an indicator of the
     # fold number
     df_subj = pd.DataFrame({'participant': participant,
                             'timepoint': np.repeat(timepoints, n_splits),
-                            'accuracy': np.ravel(res),
+                            settings.output_metric: np.ravel(res),
                             'split': list(range(n_splits)) * len(res)
                             })
+
 
     return df_subj
 
 
-def reshape_windows_power(windows_power):
-    '''reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)'''
-    # Get the original shape
-    bands, epochs, channels, windows = windows_power.shape
-
-    # Reshape to the desired shape
-    reshaped_windows_power = windows_power.transpose(1, 0, 2, 3).reshape(epochs, bands * channels, windows)
-
-    return reshaped_windows_power
+#def reshape_windows_power(windows_power, swap, reshape_param):
+#    reshaped_windows_power = windows_power.swapaxes(*swap).reshape([windows_power.shape[d] if d!=-1 else -1 for d in reshape_param])
+#
+#
+#    #'''reshape windows_power from ( bands, epochs, channels, windows) to (epochs, bands * channels, windows)'''
+#    ## Get the original shape
+#    #n_bands, n_epochs, n_channels, n_windows = windows_power.shape
+#
+#    ## Reshape to the desired shape
+#    #reshaped_windows_power = windows_power.transpose(1, 0, 2, 3).reshape(n_epochs, n_bands * n_channels, n_windows)
+#
+#    return reshaped_windows_power
 
 
 def pca_fit_transform(data, n_components=200):
@@ -462,22 +503,34 @@ def pca_fit_transform(data, n_components=200):
     return data
 
 
-def reshape_windows_power_for_pca(windows_power):
-    '''input: shape(epochs, bands*channels, windows)
-    output: shape(epochs*windows, bands*channels)
-    '''
-    epochs, bands_channels, windows = windows_power.shape
-    reshaped_windows_power = windows_power.transpose(0,2,1).reshape(epochs * windows, bands_channels)
-    return reshaped_windows_power
+def remove_button_not_pressed(data_x, labels, buttons):
+    idx_to_remove = []
+    for i in range(len(labels)):
+        if buttons[i] == False:
+            idx_to_remove.append(i)
+    data_x = np.delete(data_x, idx_to_remove, axis=0)
+    labels = np.delete(labels, idx_to_remove)
+    return data_x, labels
 
 
-def reshape_windows_power_after_pca(pca_windows_power, n_windows):
-    '''input: windows_power with shape (epochs*windows, bands*channels)
-    output: shape(epochs, bands*channels, windows)'''
-    epochs_windows, bands_channels = pca_windows_power.shape
-    epochs = int(epochs_windows/n_windows)
+#def reshape_windows_power_for_pca(windows_power):
+#    '''input: shape(epochs, bands*channels, windows)
+#    output: shape(epochs*windows, bands*channels)
+#    '''
+#
+#    n_epochs, n_bands_channels, n_windows = windows_power.shape
+#    reshaped_windows_power = windows_power.transpose(0,2,1).reshape(n_epochs * n_windows, n_bands_channels)
+#
+#    return reshaped_windows_power
 
-    #windows_power = pca_windows_power.reshape(epochs, bands_channels, n_windows)
-    windows_power = pca_windows_power.reshape(epochs, n_windows, bands_channels).transpose(0, 2, 1)
 
-    return windows_power
+#def reshape_windows_power_after_pca(pca_windows_power, n_windows):
+#    '''input: windows_power with shape (epochs*windows, bands*channels)
+#    output: shape(epochs, bands*channels, windows)'''
+#    n_epochs_windows, n_bands_channels = pca_windows_power.shape
+#    n_epochs = int(n_epochs_windows/n_windows)
+#
+#    #windows_power = pca_windows_power.reshape(epochs, bands_channels, n_windows)
+#    windows_power = pca_windows_power.reshape(n_epochs, n_windows, n_bands_channels).transpose(0, 2, 1)
+#
+#    return windows_power

@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@author: vera.klütz
+"""
+
 import pandas as pd
 import os
 from joblib import Parallel, delayed
@@ -38,9 +44,9 @@ for p, participant in enumerate(
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-    #epochs, labels = utils.get_quadrant_data(participant)
+    epochs, labels = utils.get_quadrant_data(participant)
     #epochs, labels = utils.get_valence_data(participant)
-    epochs, labels = utils.get_nonsubj_valence_data(participant)
+    #epochs, labels = utils.get_nonsubj_valence_data(participant)
     if epochs is None or labels is None:
         continue
 
