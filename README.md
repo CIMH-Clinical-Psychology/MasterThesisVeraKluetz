@@ -8,6 +8,7 @@ This repository has the following structure:
 - for decoding emotional content, use the 'run_analysis.py' file
 
 Many helper functions have been outsorced to 'functions.py' and 'utils.py', there is no clear distinction when to choose which file of them for adding a function.
+
 The 'settings.py' is an important central file which contains all user settings, like which exact classifier to choose, which pre-processing version, which timepoints for the epochs, which event id,...
 
 The behavioural results of the MEG measurement have been evaluated with the 'run_behavioural_analysis.py'. For example, it creates plots showing how often people pressed the button, correlation values,..
@@ -17,10 +18,7 @@ The behavioural results of the MEG measurement have been evaluated with the 'run
 
 
 
-/n
-/n
-/n
-
+\n\n\n
 
 
 For reference, here is the trial workflow:
