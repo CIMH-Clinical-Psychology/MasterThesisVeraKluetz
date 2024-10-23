@@ -3,7 +3,7 @@
 """
 Created on Mon Mar 25 15:11:07 2024
 
-@author: simon.kern
+@author: vera.klütz and simon.kern
 """
 import os
 import getpass
@@ -27,7 +27,7 @@ plot_folderpath = (f"/zi/flstorage/group_klips/data/data/VeraK/Plots/")
 
 # Regarding the following parameters:
 #  - if you are before preprocessing, choose the parameters as you like
-#  - if you want to use already prepocessed data, take the following parameters from the stored filenames you want to use!
+#  - if you want to use already prepocessed data, take the following parameters from the names of the stored files you want to use!
 
 event_id_selection = 30
 #event_id = {'trigger_preimage': 10,
@@ -53,10 +53,10 @@ target = "subj_valence" #"gif_position" "subj_arousal" "obj_valence"
 classes = "binary" #"origClasses"
 output_metric = "accuracy" #"f1_score"
 
-# todo: penalty l2
 
 # idx_oversampled = np.random.choice(np.arange(n_baselineepochs), replace=True, size=len(n_gifepochs))
 # data_x = np.hstack([baseline_epochs[idx_oversampled], gif_epochs])
+
 # --- select classifier ----
 clf = LogisticRegression(C=10, max_iter=1000, random_state=99) # C parameter is important to set regularization, might overregularize else
 #clf = RandomForestClassifier(n_estimators=100, random_state=99) # could also use RandomForest, as it's more robust, should always work out of the box
@@ -69,7 +69,7 @@ pipe = Pipeline(steps=[('scaler', StandardScaler()),
 
 # loop through each participants number from 01 to 35
 _missing = [25, 28, 31]
-participants = [str(i).zfill(2) for i in range(1, 36) if not i in _missing]   #todo: set to 1
+participants = [str(i).zfill(2) for i in range(1, 36) if not i in _missing]   
 
 
 #%%###################
