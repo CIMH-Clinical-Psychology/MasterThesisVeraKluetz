@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@author: vera.klütz
+"""
+
 import pandas as pd
 import os
 from joblib import Parallel, delayed
