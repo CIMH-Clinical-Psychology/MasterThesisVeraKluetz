@@ -3,15 +3,13 @@
 """
 Created on Tue Apr 26 14:56 2024
 
-This file contains all functions
+This file contains all helper functions
 
-@author: vera klütz
+@author: vera.klütz
 """
 import os
 import sys
-
 import antropy
-
 import settings
 import autoreject
 import scipy
@@ -36,11 +34,12 @@ if sys.platform!='win32': # does not work on windows
 
 # define cached functions for faster execution
 mem = Memory(settings.cachedir if settings.caching else None)  # only enable caching if wanted
-# cached_func = mne.cache(mne.io.read_raw)
 
 
 @mem.cache
 def read_raw_filtered_cached(fif_filepath, highpass, lowpass, notch):
+    """reads the raw fif file and highpass (and lowpasses) the data and if 
+    applicable also applies a notch filter"""
     raw = mne.io.read_raw_fif(fif_filepath, preload=True, verbose='INFO')
     raw.filter(highpass, lowpass, n_jobs=-1)
     if notch is not None:
@@ -55,6 +54,7 @@ def fit_apply_ica_cached(mne_obj, mne_obj_meg, ica_def, ica_ecg, ica_eog):
     mne_obj_meg contains only MEG channels (usually 306)
     expects a raw or epochs item
     returns the same object but with EOG and ECG components removed"""
+    
     print('###  running ica')
     # work on a copy of the data, as some operations are in place
     mne_obj_meg = mne_obj_meg.copy()
@@ -111,6 +111,8 @@ def valid_filename(string):
 
 
 def autoreject_fit_cached(epochs):
+    """automatically takes out bad epochs. It only re-computes this step if no calculation is already stored.
+    """
     print('###  running autoreject')
     epochs_hash = hash(epochs)
     autoreject_cache_file = valid_filename(f'{settings.cachedir}/{epochs_hash}.autoreject')
@@ -237,8 +239,6 @@ def loop_through_participants(tmin, tmax, event_id_selection, highpass = 0.1, lo
 
 
 
-
-
 @mem.cache
 def read_epoch_cached_fif(full_filename):
     epochs = mne.read_epochs(full_filename)
@@ -317,6 +317,7 @@ def plot_epochs_per_participant(participants, list_num_epochs):
 
 
 def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=0.25):
+    """ updates the big results figure with the results of the current participant"""
     fig = ax.figure
     df_subj = df_all[df_all.participant==participant]
     times = df_subj.timepoint
@@ -335,24 +336,9 @@ def plot_subj_into_big_figure(df_all, participant, ax, ax_bottom, random_chance=
     plt.pause(0.1)  # necessary for plotting to update
 
 
-#def old_plot_subj_into_big_figure(fig, axs, ax_bottom, p, participant, epochs, df_subj, df_all):
-#    '''plots a subject into the small axis and then updates the summary of all participants in the lower right plot'''
-#    # first plot this participant into the small axis
-#    ax = axs[p]  # select axis of this participant
-#    sns.lineplot(data=df_subj, x='timepoint', y=settings.output_metric, ax=ax)
-#    ax.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--', color='gray')  # draw random chance line
-#    ax.set_title(f'{participant=}')
-#    # then plot a summary of all participant into the big plot
-#    ax_bottom.clear()  # clear axis from previous line
-#    sns.lineplot(data=df_all, x='timepoint', y=settings.output_metric, ax=ax_bottom)
-#    ax_bottom.hlines(0.25, min(epochs.times), max(epochs.times), linestyle='--',
-#                     color='gray')  # draw random chance line
-#    ax_bottom.set_title(f'Mean of {len(df_all.participant.unique())} participants')
-#    fig.tight_layout()
-#    plt.pause(0.1)  # necessary for plotting to update
-
 
 def get_windows_power(windows, sfreq, axis=-1):
+    """calculates the spectral power of each window"""
     ##todo: check once in a while if taking all windows at once instead of looping through them takes up too much memory
     w = scipy.fftpack.rfft(windows, axis=axis)
     freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
@@ -360,53 +346,6 @@ def get_windows_power(windows, sfreq, axis=-1):
     # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
     power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
     return power, freqs
-
-    # previous get_windows_power code
-    #'''returns a list of lists of e.g. alpha power. Each alhpa power has the shape (epochs x channel)'''
-    #windows_power = []
-    ## convert to frequency domain via rfft (we don't need the imaginary part)
-    #w = scipy.fftpack.rfft(windows, axis=-1)
-    #freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
-    ## w.shape = (144, 306, 16, 500)
-    ## freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
-    #power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
-    ## e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
-    ## now you can use these to calculate brain bands, e.g.
-    #alpha = [8, 14]
-    #alpha_idx1 = np.argmax(freqs > alpha[0])
-    #alpha_idx2 = np.argmax(freqs > alpha[1])
-    #alpha_power = power[:, :, :, alpha_idx1:alpha_idx2].mean(-1)
-    ## alpha_power .shape = (144, 306, 6)
-    ## for each epoch, for each channel, for each window, one alpha power value
-    #windows_power += [alpha_power[:,:,i] for i in np.arange(windows.shape[2])]  # add alpha power values of each window to list
-#
-    #return windows_power
-
-
-    ## even more old get_windwos_power code for looping through each window individually
-    #windows_power = []
-    ## loop through windows
-    #for i in tqdm(range(windows.shape[2])):
-    #    # this loop can for sure be paralellized and also should be a function with parameters and not a loop
-    #    win = windows[:, :, i, :]
-    #    # convert to frequency domain via rfft (we don't need the imaginary part)
-    #    w = scipy.fftpack.rfft(win, axis=-1)
-    #    freqs = scipy.fftpack.rfftfreq(w.shape[-1], d=1 / sfreq)
-    #    # w.shape = (144, 306, 500)
-    #    # freqs = [0, 2, 4, ..., 500] freqs belonging to each index of w
-    #    power = np.abs(w) ** 2 / (len(w[-1]) * sfreq)  # convert to spectral power
-    #    # e.g. w[0, 4, 2] = power of epoch 0, channel 4 for frequency bin 4 Hz
-    #    # now you can use these to calculate brain bands, e.g.
-    #    alpha = [8, 14]
-    #    alpha_idx1 = np.argmax(freqs > alpha[0])
-    #    alpha_idx2 = np.argmax(freqs > alpha[1])
-    #    alpha_power = power[:, :, alpha_idx1:alpha_idx2].mean(-1)
-    #    # alpha_power .shape = (144, 306),
-    #    # for each epoch, for each channel one alpha power value
-    #    windows_power += [alpha_power]  # add alpha power values of this window to list
-
-    #return windows_power
-
 
 
 
@@ -443,7 +382,6 @@ def get_antropy_features(windows):
     higuchi_fd = lambda x: ant.higuchi_fd(x)
     det_fluc = lambda x: ant.detrended_fluctuation(x)
 
-
     #perm_entro = lambda x, normalize=True: ant.perm_entropy(x, normalize)
     #decom_entro = lambda x, normalize=True: ant.svd_entropy(x, normalize)
     funcs = [perm_entro, decom_entro, spec_entro, approx_entro, samp_entro, zero_cross, lziv_comp, petro_fd, katz_fd, higuchi_fd, det_fluc]  # hjorth_mob,
@@ -451,7 +389,6 @@ def get_antropy_features(windows):
     ant_features = []
     for func in funcs:
         ant_features.append(np.apply_along_axis(func1d=func, axis=-1, arr=windows))
-
 
     #perm_ent = np.apply_along_axis(antropy.perm_entropy, axis=-1, arr=windows)
 
