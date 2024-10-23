@@ -16,8 +16,9 @@ The behavioural results of the MEG measurement have been evaluated with the 'run
 
 
 
-
-///
+\
+\
+\
 
 
 For reference, here is the trial workflow:
