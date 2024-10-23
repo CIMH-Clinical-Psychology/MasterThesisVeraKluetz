@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@author: vera.klütz 
+"""
+
 import os
 import time
 import matplotlib.pyplot as plt
@@ -14,10 +20,12 @@ plt.ion()
 functions.ignore_warnings()
 
 window_size = 0.5
-step_size = 0.15 #todo: is step size 0.25 to big? only 50% overlap
+step_size = 0.15 
 
 b_remove_buttons_not_pressed = True
 n_components_pca = 100
+
+# option 1: define certain bands to take
 bands_selection = ['delta', 'theta', 'alpha', 'beta']
 bands_dict = {'delta': [1, 4],
                    'theta': [4, 8],
@@ -25,7 +33,7 @@ bands_dict = {'delta': [1, 4],
                    'beta': [13, 30]}
 bands = [bands_dict[bands_selection[i]] for i in range(len(bands_selection))]
 
-
+# option 2: take 1 Hz Bins
 #bands_selection = ['1Hz-Bin']
 #bands = [[i, i+1] for i in range(30)]
 
@@ -46,13 +54,10 @@ for p, participant in enumerate(participants):
     print(f'This is participant number {participant}')
     print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-
     epochs, baseline_epochs, labels, buttons = utils.get_target_data(participant, b_remove_buttons_not_pressed)
 
     if epochs is None or labels is None:
         continue
-
-
 
     # get sampling frequency
     sfreq=epochs.info['sfreq']
@@ -61,15 +66,16 @@ for p, participant in enumerate(participants):
     # let the baseline epochs end at 0.0
     #timepoints_baseline = baseline_epochs.times - max(baseline_epochs.times)
     timepoints_baseline = np.linspace(min(baseline_epochs.times)-max(baseline_epochs.times), 0, len(baseline_epochs.times))
-    timepoints_epochs = np.linspace(0, max(epochs.times)-min(epochs.times), len(epochs.times))
-    # let the timepoints of the normal epochs start at timepint 0.0
+    # let the timepoints of the normal epochs start at timepoint 0.0
     #timepoints_epochs = epochs.times - min(epochs.times)
-
+    timepoints_epochs = np.linspace(0, max(epochs.times)-min(epochs.times), len(epochs.times))
+    
+    # concatenate baseline timepoints and epochs timepoints together
     timepoints = np.concatenate((timepoints_baseline, timepoints_epochs))
     # extract data stored in epochs
     #data_x = epochs.get_data(copy=False) #shape(144, 306, 3501)
 
-
+    # concatenate the data from the baseline epochs and the examined epochs
     arr_epochs = epochs.get_data(copy=False)
     arr_baseline = baseline_epochs.get_data(copy=False)
     data_x = np.concatenate((arr_baseline, arr_epochs), axis = 2)
@@ -90,8 +96,7 @@ for p, participant in enumerate(participants):
         axs[p].text(0.1, 0.4, f'{participant=} \n {len(data_x)} epochs, skip')
         continue  # some participants have very few usable epochs
 
-    #hi = np.bincount(labels)
-    #hu = np.nonzero(np.bincount(labels))
+    
     # if there are less than 5 targets per class, skip this participant
     if any([c<5 for c in np.bincount(labels)]):
         axs[p].set_title(f'{participant=}')
@@ -117,7 +122,7 @@ for p, participant in enumerate(participants):
     #    plot_filename = os.path.join(settings.plot_folderpath, filename)
     #    fig_head.savefig(plot_filename)
 
-    #uncomment this for saving a picture of alpha and or theta waves, note that is happens for every participant and overwrites the previous one
+    #uncomment this for saving a picture of alpha and or theta waves, note that it happens for every participant and overwrites the previously stored file
     #for i in range(windows_power.shape[0]):
     #    # just for the fun of it, plot e.g. mean alpha power over time for each channel
     #    # there should be a streak of occipital channels showing higher alpha
